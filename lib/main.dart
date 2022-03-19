@@ -1,3 +1,6 @@
+import 'dart:developer';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as path;
 
@@ -50,10 +53,18 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   // TODO: ユーザーが画像を選択できるようにする
-  String filePath = path.join("C:", "Users", "tatsu", "Desktop", "wallpaper_changer_sample.jpg");
+  String wallpaperFilePath = path.join("C:", "Users", "tatsu", "Desktop", "wallpaper_changer_sample.jpg");
 
   void _handleChangeWallpaper() {
+    var file = File(wallpaperFilePath);
+    if (!file.existsSync()) {
+      // ファイルが存在しない
+      log("画像が存在しない。 filePath=$wallpaperFilePath");
+      return;
+    }
+
     // FIXME: Win32 APIを呼び出してシステムの背景画像を変更する
+    log("背景画像を変更する。 filePath=$wallpaperFilePath");
   }
 
   @override
@@ -90,7 +101,7 @@ class _MyHomePageState extends State<MyHomePage> {
           // horizontal).
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            Text(filePath),
+            Text(wallpaperFilePath),
             TextButton(
                 onPressed: _handleChangeWallpaper,
                 child: const Text("Change Wallpaper"),
