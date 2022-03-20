@@ -1,8 +1,12 @@
 import 'dart:developer';
 import 'dart:io';
+import 'dart:ffi';
 
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as path;
+
+import 'package:ffi/ffi.dart';
+import 'package:win32/win32.dart';
 
 void main() {
   runApp(const MyApp());
@@ -57,8 +61,13 @@ class _MyHomePageState extends State<MyHomePage> {
   // TODO: ユーザーが画像を選択できるようにする
   String wallpaperFilePath = path.join("C:", "Users", "tatsu", "Desktop", "wallpaper_changer_sample.jpg");
 
+  /// モニタ
+  static List<int> _monitors = [];
+
   /// 壁紙を変更するボタンが押された時の処理。
   void _handleChangeWallpaper() {
+    _monitors.clear();
+
     var file = File(wallpaperFilePath);
     if (!file.existsSync()) {
       // ファイルが存在しない
@@ -68,7 +77,88 @@ class _MyHomePageState extends State<MyHomePage> {
 
     // FIXME: Win32 APIを呼び出してシステムの背景画像を変更する
     log("壁紙を変更する。 filePath=$wallpaperFilePath");
+
+    final hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+
+    if (FAILED(hr)) {
+      throw WindowsException(hr);
+    }
+
+    var desktopWallpaper = DesktopWallpaper.createInstance();
+    try {
+      int result = FALSE;
+
+      // モニタの数を取得する
+      Pointer<Uint32> monitorDevicePathCountPtr = calloc<Uint32>();
+      result = desktopWallpaper.GetMonitorDevicePathCount(monitorDevicePathCountPtr);
+      log("result=$result, monitorDevicePathCountPtr.value=${monitorDevicePathCountPtr.value}");
+
+      // すべてのモニタに壁紙を設定する
+      Pointer<Utf16> wallpaperFilePathPtr = wallpaperFilePath.toNativeUtf16();
+      for (var i=0; i<monitorDevicePathCountPtr.value; i++) {
+        Pointer<Pointer<Utf16>> monitorIdPtr = calloc<Pointer<Utf16>>();
+        result = desktopWallpaper.GetMonitorDevicePathAt(i, monitorIdPtr);
+        log("result=$result, monitorIdPtr=${monitorIdPtr}");
+
+        log("==>SetWallpaper. i=$i");
+        desktopWallpaper.SetWallpaper(monitorIdPtr.value, wallpaperFilePathPtr);
+        log("<==SetWallpaper");
+
+        // メモリの開放
+        free(monitorIdPtr);
+      }
+
+      // メモリの開放
+      free(wallpaperFilePathPtr);
+      free(monitorDevicePathCountPtr);
+    } finally {
+      free(desktopWallpaper.ptr);
+      CoUninitialize();
+    }
   }
+
+  /// メインモニタのIDを返す
+  int _getMainMonitorId() {
+    // モニタの一覧を取得
+    var result = EnumDisplayMonitors(
+        NULL, // all displays
+        nullptr, // no clipping region
+        Pointer.fromFunction<MonitorEnumProc>(
+            _enumMonitorCallback, // dwData
+            0),
+        NULL);
+    if (result == FALSE) {
+      throw WindowsException(result);
+    }
+
+    log('Number of monitors: ${_monitors.length}');
+
+    return _findPrimaryMonitor(_monitors);
+  }
+
+  static int _enumMonitorCallback(int hMonitor, int hDC, Pointer lpRect, int lParam) {
+    _monitors.add(hMonitor);
+    return TRUE;
+  }
+
+  int _findPrimaryMonitor(List<int> monitors) {
+    final monitorInfo = calloc<MONITORINFO>()..ref.cbSize = sizeOf<MONITORINFO>();
+
+    for (final monitor in monitors) {
+      final result = GetMonitorInfo(monitor, monitorInfo);
+      if (result == TRUE) {
+        if (_testBitmask(monitorInfo.ref.dwFlags, MONITORINFOF_PRIMARY)) {
+          free(monitorInfo);
+          return monitor;
+        }
+      }
+    }
+
+    free(monitorInfo);
+    return 0;
+  }
+
+  bool _testBitmask(int bitmask, int value) => bitmask & value == value;
 
   @override
   Widget build(BuildContext context) {
