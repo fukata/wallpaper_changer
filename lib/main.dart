@@ -1,4 +1,12 @@
+import 'dart:developer';
+import 'dart:io';
+import 'dart:ffi';
+
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as path;
+
+import 'package:ffi/ffi.dart';
+import 'package:win32/win32.dart';
 
 void main() {
   runApp(const MyApp());
@@ -24,7 +32,8 @@ class MyApp extends StatelessWidget {
         // is not restarted.
         primarySwatch: Colors.blue,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      darkTheme: ThemeData.dark(),
+      home: const MyHomePage(title: 'Wallpaper Changer'),
     );
   }
 }
@@ -48,17 +57,59 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+  /// 現在の壁紙のファイルパス
+  // TODO: ユーザーが画像を選択できるようにする
+  String wallpaperFilePath = path.join("C:", "Users", "tatsu", "Desktop", "wallpaper_changer_sample.jpg");
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+  /// 壁紙を変更するボタンが押された時の処理。
+  void _handleChangeWallpaper() {
+    var file = File(wallpaperFilePath);
+    if (!file.existsSync()) {
+      // ファイルが存在しない
+      log("画像が存在しない。 filePath=$wallpaperFilePath");
+      return;
+    }
+
+    // FIXME: Win32 APIを呼び出してシステムの背景画像を変更する
+    log("壁紙を変更する。 filePath=$wallpaperFilePath");
+
+    final hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+
+    if (FAILED(hr)) {
+      throw WindowsException(hr);
+    }
+
+    var desktopWallpaper = DesktopWallpaper.createInstance();
+    try {
+      int result = FALSE;
+
+      // モニタの数を取得する
+      Pointer<Uint32> monitorDevicePathCountPtr = calloc<Uint32>();
+      result = desktopWallpaper.GetMonitorDevicePathCount(monitorDevicePathCountPtr);
+      log("result=$result, monitorDevicePathCountPtr.value=${monitorDevicePathCountPtr.value}");
+
+      // すべてのモニタに壁紙を設定する
+      Pointer<Utf16> wallpaperFilePathPtr = wallpaperFilePath.toNativeUtf16();
+      for (var i=0; i<monitorDevicePathCountPtr.value; i++) {
+        Pointer<Pointer<Utf16>> monitorIdPtr = calloc<Pointer<Utf16>>();
+        result = desktopWallpaper.GetMonitorDevicePathAt(i, monitorIdPtr);
+        log("result=$result, monitorIdPtr=${monitorIdPtr}");
+
+        log("==>SetWallpaper. i=$i");
+        desktopWallpaper.SetWallpaper(monitorIdPtr.value, wallpaperFilePathPtr);
+        log("<==SetWallpaper");
+
+        // メモリの開放
+        free(monitorIdPtr);
+      }
+
+      // メモリの開放
+      free(wallpaperFilePathPtr);
+      free(monitorDevicePathCountPtr);
+    } finally {
+      free(desktopWallpaper.ptr);
+      CoUninitialize();
+    }
   }
 
   @override
@@ -95,21 +146,14 @@ class _MyHomePageState extends State<MyHomePage> {
           // horizontal).
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
+            Text(wallpaperFilePath),
+            TextButton(
+                onPressed: _handleChangeWallpaper,
+                child: const Text("Change Wallpaper"),
             ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
