@@ -61,13 +61,8 @@ class _MyHomePageState extends State<MyHomePage> {
   // TODO: ユーザーが画像を選択できるようにする
   String wallpaperFilePath = path.join("C:", "Users", "tatsu", "Desktop", "wallpaper_changer_sample.jpg");
 
-  /// モニタ
-  static List<int> _monitors = [];
-
   /// 壁紙を変更するボタンが押された時の処理。
   void _handleChangeWallpaper() {
-    _monitors.clear();
-
     var file = File(wallpaperFilePath);
     if (!file.existsSync()) {
       // ファイルが存在しない
@@ -116,49 +111,6 @@ class _MyHomePageState extends State<MyHomePage> {
       CoUninitialize();
     }
   }
-
-  /// メインモニタのIDを返す
-  int _getMainMonitorId() {
-    // モニタの一覧を取得
-    var result = EnumDisplayMonitors(
-        NULL, // all displays
-        nullptr, // no clipping region
-        Pointer.fromFunction<MonitorEnumProc>(
-            _enumMonitorCallback, // dwData
-            0),
-        NULL);
-    if (result == FALSE) {
-      throw WindowsException(result);
-    }
-
-    log('Number of monitors: ${_monitors.length}');
-
-    return _findPrimaryMonitor(_monitors);
-  }
-
-  static int _enumMonitorCallback(int hMonitor, int hDC, Pointer lpRect, int lParam) {
-    _monitors.add(hMonitor);
-    return TRUE;
-  }
-
-  int _findPrimaryMonitor(List<int> monitors) {
-    final monitorInfo = calloc<MONITORINFO>()..ref.cbSize = sizeOf<MONITORINFO>();
-
-    for (final monitor in monitors) {
-      final result = GetMonitorInfo(monitor, monitorInfo);
-      if (result == TRUE) {
-        if (_testBitmask(monitorInfo.ref.dwFlags, MONITORINFOF_PRIMARY)) {
-          free(monitorInfo);
-          return monitor;
-        }
-      }
-    }
-
-    free(monitorInfo);
-    return 0;
-  }
-
-  bool _testBitmask(int bitmask, int value) => bitmask & value == value;
 
   @override
   Widget build(BuildContext context) {
