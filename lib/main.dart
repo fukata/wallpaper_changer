@@ -53,9 +53,11 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  /// 現在の壁紙のファイルパス
   // TODO: ユーザーが画像を選択できるようにする
   String wallpaperFilePath = path.join("C:", "Users", "tatsu", "Desktop", "wallpaper_changer_sample.jpg");
 
+  /// 壁紙を変更するボタンが押された時の処理。
   void _handleChangeWallpaper() {
     var file = File(wallpaperFilePath);
     if (!file.existsSync()) {
@@ -65,7 +67,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     // FIXME: Win32 APIを呼び出してシステムの背景画像を変更する
-    log("背景画像を変更する。 filePath=$wallpaperFilePath");
+    log("壁紙を変更する。 filePath=$wallpaperFilePath");
   }
 
   @override
