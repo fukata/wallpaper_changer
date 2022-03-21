@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
 import 'package:googleapis/oauth2/v2.dart';
+import 'package:googleapis/photoslibrary/v1.dart';
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:path/path.dart' as path;
 import 'package:url_launcher/url_launcher.dart';
@@ -135,6 +136,8 @@ class _MyHomePageState extends State<MyHomePage> {
     var oauth2Api = Oauth2Api(client);
     var userInfo = await oauth2Api.userinfo.v2.me.get();
     log("profile. id=${userInfo.id}, username=${userInfo.name}");
+
+    _loadGooglePhotos(client);
   }
 
   Future<AuthClient> _obtainCredentials() async {
@@ -151,6 +154,22 @@ class _MyHomePageState extends State<MyHomePage> {
         launch(url);
       },
     );
+  }
+
+  /// Google Photos から写真を読み込む
+  void _loadGooglePhotos(AuthClient client) async {
+    var photosApi = PhotosLibraryApi(client);
+    SearchMediaItemsRequest request = SearchMediaItemsRequest(
+      filters: Filters(mediaTypeFilter: MediaTypeFilter(mediaTypes: ['PHOTO'])),
+      orderBy: 'MediaMetadata.creation_time desc',
+      pageSize: 50,
+    );
+    var response = await photosApi.mediaItems.search(request);
+    if (response.mediaItems != null) {
+      for(var mediaItem in response.mediaItems!) {
+        log("mediaItem=${mediaItem.toJson()}");
+      }
+    }
   }
 
   @override
