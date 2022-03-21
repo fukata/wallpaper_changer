@@ -1,14 +1,18 @@
 import 'dart:developer';
-import 'dart:io';
 import 'dart:ffi';
-
-import 'package:flutter/material.dart';
-import 'package:path/path.dart' as path;
+import 'dart:io';
 
 import 'package:ffi/ffi.dart';
+import 'package:flutter/material.dart';
+import 'package:googleapis/oauth2/v2.dart';
+import 'package:googleapis_auth/auth_io.dart';
+import 'package:path/path.dart' as path;
+import 'package:url_launcher/url_launcher.dart';
 import 'package:win32/win32.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() {
+void main() async {
+  await dotenv.load(fileName: '.env');
   runApp(const MyApp());
 }
 
@@ -105,7 +109,8 @@ class _MyHomePageState extends State<MyHomePage> {
         log("result=$result, monitorIdPtr=${monitorIdPtr}");
 
         log("change wallpaper. i=$i");
-        result = desktopWallpaper.SetWallpaper(monitorIdPtr.value, wallpaperFilePathPtr);
+        result = desktopWallpaper.SetWallpaper(
+            monitorIdPtr.value, wallpaperFilePathPtr);
         if (result != S_OK) {
           free(monitorIdPtr);
           throw WindowsException(result);
@@ -120,6 +125,32 @@ class _MyHomePageState extends State<MyHomePage> {
       free(desktopWallpaper.ptr);
       CoUninitialize();
     }
+  }
+
+  /// Google Photos と OAuthを行う
+  void _handleGooglePhotosAuth() async {
+    AuthClient client = await _obtainCredentials();
+    log("credentials=${client.credentials.toJson()}");
+
+    var oauth2Api = Oauth2Api(client);
+    var userInfo = await oauth2Api.userinfo.v2.me.get();
+    log("profile. id=${userInfo.id}, username=${userInfo.name}");
+  }
+
+  Future<AuthClient> _obtainCredentials() async {
+    String clientId = dotenv.env["GOOGLE_CLIENT_ID"]!;
+    String clientSecret = dotenv.env["GOOGLE_CLIENT_SECRET"]!;
+    return await clientViaUserConsent(
+      ClientId(clientId, clientSecret),
+      [
+        'https://www.googleapis.com/auth/userinfo.profile',
+        'https://www.googleapis.com/auth/photoslibrary.readonly',
+      ],
+      (String url) {
+        log("url=$url");
+        launch(url);
+      },
+    );
   }
 
   @override
@@ -160,6 +191,10 @@ class _MyHomePageState extends State<MyHomePage> {
             TextButton(
               onPressed: _handleChangeWallpaper,
               child: const Text("Change Wallpaper"),
+            ),
+            TextButton(
+              onPressed: _handleGooglePhotosAuth,
+              child: const Text("Connect to Google Photos"),
             ),
           ],
         ),
