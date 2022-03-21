@@ -59,7 +59,8 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   /// 現在の壁紙のファイルパス
   // TODO: ユーザーが画像を選択できるようにする
-  String wallpaperFilePath = path.join("C:", "Users", "tatsu", "Desktop", "wallpaper_changer_sample.jpg");
+  String wallpaperFilePath = path.join(
+      "C:", "Users", "tatsu", "Desktop", "wallpaper_changer_sample.jpg");
 
   /// 壁紙を変更するボタンが押された時の処理。
   void _handleChangeWallpaper() {
@@ -70,43 +71,48 @@ class _MyHomePageState extends State<MyHomePage> {
       return;
     }
 
-    // FIXME: Win32 APIを呼び出してシステムの背景画像を変更する
     log("壁紙を変更する。 filePath=$wallpaperFilePath");
 
-    final hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-
+    final hr = CoInitializeEx(
+        nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
     if (FAILED(hr)) {
       throw WindowsException(hr);
     }
 
     var desktopWallpaper = DesktopWallpaper.createInstance();
+    Pointer<Utf16> wallpaperFilePathPtr = wallpaperFilePath.toNativeUtf16();
     try {
       int result = FALSE;
 
       // モニタの数を取得する
       Pointer<Uint32> monitorDevicePathCountPtr = calloc<Uint32>();
-      result = desktopWallpaper.GetMonitorDevicePathCount(monitorDevicePathCountPtr);
+      result =
+          desktopWallpaper.GetMonitorDevicePathCount(monitorDevicePathCountPtr);
+      if (result != S_OK) {
+        free(monitorDevicePathCountPtr);
+        throw WindowsException(result);
+      }
       log("result=$result, monitorDevicePathCountPtr.value=${monitorDevicePathCountPtr.value}");
 
       // すべてのモニタに壁紙を設定する
-      Pointer<Utf16> wallpaperFilePathPtr = wallpaperFilePath.toNativeUtf16();
-      for (var i=0; i<monitorDevicePathCountPtr.value; i++) {
+      for (var i = 0; i < monitorDevicePathCountPtr.value; i++) {
         Pointer<Pointer<Utf16>> monitorIdPtr = calloc<Pointer<Utf16>>();
         result = desktopWallpaper.GetMonitorDevicePathAt(i, monitorIdPtr);
+        if (result != S_OK) {
+          free(monitorIdPtr);
+          throw WindowsException(result);
+        }
         log("result=$result, monitorIdPtr=${monitorIdPtr}");
 
-        log("==>SetWallpaper. i=$i");
+        log("Change wallpaper. i=$i");
         desktopWallpaper.SetWallpaper(monitorIdPtr.value, wallpaperFilePathPtr);
-        log("<==SetWallpaper");
 
-        // メモリの開放
         free(monitorIdPtr);
       }
 
-      // メモリの開放
-      free(wallpaperFilePathPtr);
       free(monitorDevicePathCountPtr);
     } finally {
+      free(wallpaperFilePathPtr);
       free(desktopWallpaper.ptr);
       CoUninitialize();
     }
@@ -148,8 +154,8 @@ class _MyHomePageState extends State<MyHomePage> {
           children: <Widget>[
             Text(wallpaperFilePath),
             TextButton(
-                onPressed: _handleChangeWallpaper,
-                child: const Text("Change Wallpaper"),
+              onPressed: _handleChangeWallpaper,
+              child: const Text("Change Wallpaper"),
             ),
           ],
         ),
