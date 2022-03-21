@@ -104,8 +104,12 @@ class _MyHomePageState extends State<MyHomePage> {
         }
         log("result=$result, monitorIdPtr=${monitorIdPtr}");
 
-        log("Change wallpaper. i=$i");
-        desktopWallpaper.SetWallpaper(monitorIdPtr.value, wallpaperFilePathPtr);
+        log("change wallpaper. i=$i");
+        result = desktopWallpaper.SetWallpaper(monitorIdPtr.value, wallpaperFilePathPtr);
+        if (result != S_OK) {
+          free(monitorIdPtr);
+          throw WindowsException(result);
+        }
 
         free(monitorIdPtr);
       }
