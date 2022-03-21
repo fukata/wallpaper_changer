@@ -49,6 +49,12 @@ dependencies:
   # 環境変数を .env から読み込むために使用
   flutter_dotenv: ^5.0.2
 
+  # 認証情報、Google Photos のデータを保存するために使用
+  realm: ^0.2.1
+
+  # アプリケーション用のフォルダのパスを特定するために使用
+  path_provider: ^2.0.9
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

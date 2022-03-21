@@ -1,6 +1,7 @@
 import 'dart:developer';
 import 'dart:ffi';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
@@ -8,12 +9,23 @@ import 'package:googleapis/oauth2/v2.dart';
 import 'package:googleapis/photoslibrary/v1.dart';
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:wallpaper_changer/app.dart' as app;
 import 'package:win32/win32.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:realm/realm.dart';
+import 'package:googleapis_auth/src/auth_http_utils.dart';
+import 'package:http/http.dart' as http;
+
+late Realm realm;
 
 void main() async {
   await dotenv.load(fileName: '.env');
+  var realmConfig = Configuration([app.User.schema, app.MediaItem.schema]);
+  realmConfig.schemaVersion = 1;
+  realm = Realm(realmConfig);
+
   runApp(const MyApp());
 }
 
@@ -64,19 +76,25 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   /// 現在の壁紙のファイルパス
   // TODO: ユーザーが画像を選択できるようにする
-  String wallpaperFilePath = path.join(
-      "C:", "Users", "tatsu", "Desktop", "wallpaper_changer_sample.jpg");
+  String _wallpaperFilePath = "";
+
+  app.User? _currentUser;
+  int _mediaItemCount = 0;
 
   /// 壁紙を変更するボタンが押された時の処理。
   void _handleChangeWallpaper() {
-    var file = File(wallpaperFilePath);
+    _setWallpaper(_wallpaperFilePath);
+  }
+
+  void _setWallpaper(String filePath) async {
+    var file = File(filePath);
     if (!file.existsSync()) {
       // ファイルが存在しない
-      log("画像が存在しない。 filePath=$wallpaperFilePath");
+      log("画像が存在しない。 filePath=$filePath");
       return;
     }
 
-    log("壁紙を変更する。 filePath=$wallpaperFilePath");
+    log("壁紙を変更する。 filePath=$filePath");
 
     final hr = CoInitializeEx(
         nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
@@ -85,7 +103,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     var desktopWallpaper = DesktopWallpaper.createInstance();
-    Pointer<Utf16> wallpaperFilePathPtr = wallpaperFilePath.toNativeUtf16();
+    Pointer<Utf16> wallpaperFilePathPtr = filePath.toNativeUtf16();
     try {
       int result = FALSE;
 
@@ -137,7 +155,59 @@ class _MyHomePageState extends State<MyHomePage> {
     var userInfo = await oauth2Api.userinfo.v2.me.get();
     log("profile. id=${userInfo.id}, username=${userInfo.name}");
 
-    _loadGooglePhotos(client);
+    var user = _registerUser(client.credentials, userInfo);
+    setState(() {
+      _currentUser = user;
+    });
+
+    await _loadGooglePhotos(client);
+    setState(() {
+      _mediaItemCount = realm.all<app.MediaItem>().length;
+    });
+  }
+
+  /// 最後に認証したユーザーを返す
+  app.User? _getCurrentUser() {
+    var users = realm.all<app.User>();
+    if (users.isEmpty) {
+      return null;
+    } else {
+      return users.first;
+    }
+  }
+
+  app.User _registerUser(AccessCredentials credentials, Userinfo userInfo) {
+    var users = realm.query<app.User>(r'id == $0', [userInfo.id!]);
+    late app.User user;
+    if (users.isNotEmpty) {
+      user = users.first;
+      realm.write(() {
+        user.id = userInfo.id!;
+        user.name = userInfo.name!;
+        user.pictureUrl = userInfo.picture!;
+        user.accessToken = credentials.accessToken.data;
+        user.refreshToken = credentials.refreshToken!;
+        user.idToken = credentials.idToken!;
+        user.scope = credentials.scopes.join(',');
+      });
+    } else {
+      user = app.User(
+        userInfo.id!,
+        userInfo.name!,
+        userInfo.picture!,
+        credentials.accessToken.data,
+        credentials.refreshToken!,
+        credentials.idToken!,
+        credentials.scopes.join(','),
+      );
+      realm.write(() {
+        realm.deleteAll<app.User>();
+        realm.deleteAll<app.MediaItem>();
+        realm.add(user);
+      });
+    }
+
+    return user;
   }
 
   Future<AuthClient> _obtainCredentials() async {
@@ -157,19 +227,119 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   /// Google Photos から写真を読み込む
-  void _loadGooglePhotos(AuthClient client) async {
+  Future _loadGooglePhotos(AuthClient client) async {
     var photosApi = PhotosLibraryApi(client);
     SearchMediaItemsRequest request = SearchMediaItemsRequest(
       filters: Filters(mediaTypeFilter: MediaTypeFilter(mediaTypes: ['PHOTO'])),
       orderBy: 'MediaMetadata.creation_time desc',
-      pageSize: 50,
+      pageSize: 100,
     );
     var response = await photosApi.mediaItems.search(request);
     if (response.mediaItems != null) {
-      for(var mediaItem in response.mediaItems!) {
+      for (var mediaItem in response.mediaItems!) {
         log("mediaItem=${mediaItem.toJson()}");
+        _registerMediaItem(mediaItem);
       }
     }
+  }
+
+  /// 画像データを登録する
+  app.MediaItem _registerMediaItem(MediaItem mediaItem) {
+    var mediaItems = realm.query<app.MediaItem>(r'id == $0', [mediaItem.id!]);
+    if (mediaItems.isNotEmpty) {
+      return mediaItems.first;
+    }
+
+    var newMediaItem =
+        app.MediaItem(mediaItem.id!, mediaItem.filename!, mediaItem.mimeType!);
+    realm.write(() {
+      realm.add(newMediaItem);
+    });
+
+    return newMediaItem;
+  }
+
+  /// MediaItem の中からランダムに画像を選定して壁紙に設定する
+  void _handleChangeRandomWallpaper() async {
+    var mediaItems = realm.all<app.MediaItem>();
+    var total = mediaItems.length;
+    log("MediaItem total is $total");
+    if (total == 0) {
+      return;
+    }
+
+    var idx = math.Random.secure().nextInt(total);
+    var mediaItem = mediaItems.elementAt(idx);
+
+    var filePath = await _savedMediaItemFilePath(mediaItem);
+    _setWallpaper(filePath);
+    setState(() {
+      _wallpaperFilePath = filePath;
+    });
+  }
+
+  Future<String> _savedMediaItemFilePath(app.MediaItem mediaItem) async {
+    var path = await _fetchMediaItemFilePath(mediaItem);
+    log("path=$path");
+
+    // 画像が既に存在すればそれを利用する
+    if (File(path).existsSync()) {
+      return path;
+    }
+
+    // 画像がなければダウンロードする
+    var photosApi = PhotosLibraryApi(_makeAuthClientFromUser(_currentUser!));
+    var _mediaItem = await photosApi.mediaItems.get(mediaItem.id);
+    log("baseUrl=${_mediaItem.baseUrl}");
+    var extension = "jpg";
+    var url = Uri.parse("${_mediaItem.baseUrl}=w10240-h10240-no?.$extension");
+    var response = await http.get(url);
+    if (response.statusCode >= 200 || response.statusCode <= 399 && response.bodyBytes.isNotEmpty) {
+      File(path).writeAsBytesSync(response.bodyBytes);
+    }
+
+    return path;
+  }
+
+  /// googleapis の呼び出しに必要な AuthClient を User から生成する
+  AutoRefreshingAuthClient _makeAuthClientFromUser(app.User user) {
+    var accessToken = AccessToken('Bearer', user.accessToken, DateTime(2022, 1, 1).toUtc());
+    var credentials = AccessCredentials(accessToken, user.refreshToken, user.scope.split(','));
+    return AutoRefreshingClient(
+      http.Client(),
+      ClientId(dotenv.env["GOOGLE_CLIENT_ID"]!, dotenv.env["GOOGLE_CLIENT_SECRET"]!),
+      credentials
+    );
+  }
+
+  /// MediaItem の画像をダウンロードしてローカルのファイルパスを返す
+  Future<String> _fetchMediaItemFilePath(app.MediaItem mediaItem) async {
+    var dir = await _getMediaItemDir();
+    return path.join(dir.path, mediaItem.filename);
+  }
+
+  Future<Directory> _getAppDataDir() async {
+    var dir = await getApplicationDocumentsDirectory();
+    return Directory(path.join(dir.path, 'WallpaperChanger'));
+  }
+
+  Future<Directory> _getMediaItemDir() async {
+    var dir = await _getAppDataDir();
+    var mediaItemsDir = Directory(path.join(dir.path, 'MediaItems'));
+    if (!mediaItemsDir.existsSync()) {
+      mediaItemsDir.createSync(recursive: true);
+    }
+
+    return mediaItemsDir;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _wallpaperFilePath = path.join(
+        "C:", "Users", "tatsu", "Desktop", "wallpaper_changer_sample.jpg");
+    _currentUser = _getCurrentUser();
+    _mediaItemCount = realm.all<app.MediaItem>().length;
   }
 
   @override
@@ -206,11 +376,19 @@ class _MyHomePageState extends State<MyHomePage> {
           // horizontal).
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            Text(wallpaperFilePath),
+            Text(_wallpaperFilePath),
             TextButton(
               onPressed: _handleChangeWallpaper,
               child: const Text("Change Wallpaper"),
             ),
+            if (_currentUser != null)
+              Text("Connected by ${_currentUser!.name}"),
+            Text("Have $_mediaItemCount photos."),
+            if (_mediaItemCount > 0)
+              TextButton(
+                onPressed: _handleChangeRandomWallpaper,
+                child: const Text("Change random Wallpaper"),
+              ),
             TextButton(
               onPressed: _handleGooglePhotosAuth,
               child: const Text("Connect to Google Photos"),
