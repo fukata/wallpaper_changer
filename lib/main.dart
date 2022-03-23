@@ -94,11 +94,6 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  /// 壁紙を変更するボタンが押された時の処理。
-  void _handleChangeWallpaper() {
-    _setWallpaper(_wallpaperFilePath);
-  }
-
   void _setWallpaper(String filePath) async {
     var file = File(filePath);
     if (!file.existsSync()) {
@@ -397,7 +392,7 @@ class _MyHomePageState extends State<MyHomePage> {
         mainAxisAlignment: MainAxisAlignment.end,
         children: <Widget>[
           TextButton(
-            onPressed: _handleChangeWallpaper,
+            onPressed: _handleChangeRandomWallpaper,
             child: const Text("Change Wallpaper"),
           ),
           TextButton(
