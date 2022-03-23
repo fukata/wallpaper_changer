@@ -55,6 +55,9 @@ dependencies:
   # アプリケーション用のフォルダのパスを特定するために使用
   path_provider: ^2.0.9
 
+  # ウィンドウサイズを変更するために使用
+  desktop_window: ^0.4.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

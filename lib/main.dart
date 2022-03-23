@@ -3,6 +3,7 @@ import 'dart:ffi';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:desktop_window/desktop_window.dart';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
 import 'package:googleapis/oauth2/v2.dart';
@@ -25,6 +26,10 @@ void main() async {
   var realmConfig = Configuration([app.User.schema, app.MediaItem.schema]);
   realmConfig.schemaVersion = 1;
   realm = Realm(realmConfig);
+
+  DesktopWindow.setWindowSize(const Size(500, 700));
+  DesktopWindow.setMaxWindowSize(const Size(500, 700));
+  DesktopWindow.setMinWindowSize(const Size(500, 700));
 
   runApp(const MyApp());
 }
@@ -75,11 +80,19 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   /// 現在の壁紙のファイルパス
-  // TODO: ユーザーが画像を選択できるようにする
   String _wallpaperFilePath = "";
 
   app.User? _currentUser;
   int _mediaItemCount = 0;
+
+  /// 画像データを取得する
+  void _handleSync() async {
+    var client = _makeAuthClientFromUser(_currentUser!);
+    await _loadGooglePhotos(client);
+    setState(() {
+      _mediaItemCount = realm.all<app.MediaItem>().length;
+    });
+  }
 
   /// 壁紙を変更するボタンが押された時の処理。
   void _handleChangeWallpaper() {
@@ -336,66 +349,116 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    _wallpaperFilePath = path.join(
-        "C:", "Users", "tatsu", "Desktop", "wallpaper_changer_sample.jpg");
     _currentUser = _getCurrentUser();
     _mediaItemCount = realm.all<app.MediaItem>().length;
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
         title: Text(widget.title),
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(_wallpaperFilePath),
-            TextButton(
-              onPressed: _handleChangeWallpaper,
-              child: const Text("Change Wallpaper"),
-            ),
-            if (_currentUser != null)
-              Text("Connected by ${_currentUser!.name}"),
-            Text("Have $_mediaItemCount photos."),
-            if (_mediaItemCount > 0)
-              TextButton(
-                onPressed: _handleChangeRandomWallpaper,
-                child: const Text("Change random Wallpaper"),
-              ),
-            TextButton(
-              onPressed: _handleGooglePhotosAuth,
-              child: const Text("Connect to Google Photos"),
-            ),
-          ],
+      // body: _buildBody1(context),
+      body: _buildBody(context),
+    );
+  }
+
+  /// #7 新しいUI
+  Widget _buildBody(BuildContext context) {
+    if (_currentUser == null) {
+      return _buildBodyLogin(context);
+    }
+
+    return Center(
+      child: SizedBox(
+        width: 400,
+        height: double.infinity,
+        child: Padding(
+          padding: const EdgeInsets.all(10.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: <Widget>[
+              _buildWidgetConnectedUser(context),
+              _buildWidgetActions(context),
+              _buildWidgetSummaryData(context),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  ///
+  Widget _buildWidgetActions(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 10.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: <Widget>[
+          TextButton(
+            onPressed: _handleChangeWallpaper,
+            child: const Text("Change Wallpaper"),
+          ),
+          TextButton(
+            onPressed: _handleSync,
+            child: const Text("Sync"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 現在のデータ状況を表示する
+  Widget _buildWidgetSummaryData(BuildContext context) {
+    return Container(
+      color: Colors.black26,
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 10.0),
+      padding: const EdgeInsets.all(10.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text("Photos: $_mediaItemCount"),
+        ],
+      ),
+    );
+  }
+
+  /// 認証済みのアカウント情報を表示する
+  Widget _buildWidgetConnectedUser(BuildContext context) {
+    app.User user = _currentUser!;
+    return SizedBox(
+      width: double.infinity,
+      height: 40,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: <Widget>[
+          const Text("Hello, "),
+          Text(user.name),
+          CircleAvatar(
+            backgroundImage: NetworkImage(user.pictureUrl),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  /// 認証前の画面を表示する
+  Widget _buildBodyLogin(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          TextButton(
+            onPressed: _handleGooglePhotosAuth,
+            child: const Text("Connect to Google Photos"),
+          ),
+        ],
+      ),
+
     );
   }
 }
