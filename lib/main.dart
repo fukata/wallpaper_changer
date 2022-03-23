@@ -359,7 +359,6 @@ class _MyHomePageState extends State<MyHomePage> {
       appBar: AppBar(
         title: Text(widget.title),
       ),
-      // body: _buildBody1(context),
       body: _buildBody(context),
     );
   }
