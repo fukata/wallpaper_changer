@@ -56,7 +56,10 @@ dependencies:
   path_provider: ^2.0.9
 
   # ウィンドウサイズを変更するために使用
-  desktop_window: ^0.4.0
+  bitsdojo_window: ^0.1.1
+
+  # システムトレイのために使用
+  system_tray: ^0.1.0
 
 dev_dependencies:
   flutter_test:
@@ -86,6 +89,8 @@ flutter:
   #   - images/a_dot_ham.jpeg
   assets:
     - .env
+    - assets/app_icon.ico
+    - assets/app_icon.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware.

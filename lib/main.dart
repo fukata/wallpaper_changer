@@ -3,7 +3,7 @@ import 'dart:ffi';
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:desktop_window/desktop_window.dart';
+import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
 import 'package:googleapis/oauth2/v2.dart';
@@ -11,6 +11,7 @@ import 'package:googleapis/photoslibrary/v1.dart';
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
+import 'package:system_tray/system_tray.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:wallpaper_changer/app.dart' as app;
 import 'package:win32/win32.dart';
@@ -22,16 +23,29 @@ import 'package:http/http.dart' as http;
 late Realm realm;
 
 void main() async {
+  // Dot env
   await dotenv.load(fileName: '.env');
+
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Realmのセットアップ
   var realmConfig = Configuration([app.User.schema, app.MediaItem.schema]);
   realmConfig.schemaVersion = 1;
   realm = Realm(realmConfig);
 
-  DesktopWindow.setWindowSize(const Size(500, 700));
-  DesktopWindow.setMaxWindowSize(const Size(500, 700));
-  DesktopWindow.setMinWindowSize(const Size(500, 700));
-
+  // アプリ実行
   runApp(const MyApp());
+
+  // ウィンドウサイズと初回起動時の位置を設定する
+  doWhenWindowReady(() {
+    final win = appWindow;
+    final initialSize = Size(500, 700);
+    win.minSize = initialSize;
+    win.size = initialSize;
+    win.alignment = Alignment.center;
+    win.title = "Wallpaper Changer";
+    win.show();
+  });
 }
 
 class MyApp extends StatelessWidget {
@@ -41,17 +55,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Wallpaper Changer',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
         primarySwatch: Colors.blue,
       ),
       darkTheme: ThemeData.dark(),
@@ -63,15 +68,6 @@ class MyApp extends StatelessWidget {
 class MyHomePage extends StatefulWidget {
   const MyHomePage({Key? key, required this.title}) : super(key: key);
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
   final String title;
 
   @override
@@ -79,6 +75,9 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  final SystemTray _systemTray = SystemTray();
+  final AppWindow _appWindow = AppWindow();
+
   /// 現在の壁紙のファイルパス
   String _wallpaperFilePath = "";
 
@@ -344,8 +343,34 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
+    _initSystemTray();
     _currentUser = _getCurrentUser();
     _mediaItemCount = realm.all<app.MediaItem>().length;
+  }
+
+  Future<void> _initSystemTray() async {
+    String iconPath = Platform.isWindows ? 'assets/app_icon.ico' : 'assets/app_icon.png';
+
+    final menus = <MenuItemBase>[
+      MenuItem(label: "Show", onClicked: _appWindow.show),
+      MenuItem(label: "Hide", onClicked: _appWindow.hide),
+    ];
+
+    await _systemTray.initSystemTray(title: "system tray", iconPath: iconPath, toolTip: "Wallpaper Changer");
+    await _systemTray.setContextMenu(menus);
+
+    // handle system tray event
+    _systemTray.registerSystemTrayEventHandler((eventName) {
+      debugPrint("eventName: $eventName");
+      switch(eventName) {
+        case "leftMouseUp":
+          _appWindow.show();
+          break;
+        case "rightMouseUp":
+          _systemTray.popUpContextMenu();
+          break;
+      }
+    });
   }
 
   @override

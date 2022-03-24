@@ -3,8 +3,9 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
-  desktop_window
+  bitsdojo_window_windows
   realm
+  system_tray
   url_launcher_windows
 )
 
