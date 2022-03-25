@@ -439,8 +439,24 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text("最終更新：${_sp?.getString(SP_LAST_WALLPAPER_CHANGED_AT) ?? "-"}"),
-          Text("写真：$_mediaItemCount"),
+          Row(
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(right: 10),
+                child: Text("最終更新"),
+              ),
+              Text(_sp?.getString(SP_LAST_WALLPAPER_CHANGED_AT) ?? "-")
+            ],
+          ),
+          Row(
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(right: 10),
+                child: Text("写真"),
+              ),
+              Text("$_mediaItemCount")
+            ],
+          ),
         ],
       ),
     );
