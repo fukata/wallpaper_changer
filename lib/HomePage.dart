@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer';
 import 'dart:ffi';
 import 'dart:io';
@@ -13,9 +14,12 @@ import 'package:googleapis_auth/src/auth_http_utils.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:system_tray/system_tray.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:wallpaper_changer/app.dart' as app;
+import 'package:wallpaper_changer/helpers/Setting.dart';
+import 'package:wallpaper_changer/helpers/TimerUtil.dart';
 import 'package:win32/win32.dart';
 
 import 'helpers/RealmProvider.dart';
@@ -32,12 +36,14 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final SystemTray _systemTray = SystemTray();
   final AppWindow _appWindow = AppWindow();
+  SharedPreferences? _sp;
 
   /// 現在の壁紙のファイルパス
   String _wallpaperFilePath = "";
 
   app.User? _currentUser;
   int _mediaItemCount = 0;
+  Timer? _timer;
 
   /// 画像データを取得する
   void _handleSync() async {
@@ -301,6 +307,15 @@ class _HomePageState extends State<HomePage> {
     _initSystemTray();
     _currentUser = _getCurrentUser();
     _mediaItemCount = realm().all<app.MediaItem>().length;
+
+    SharedPreferences.getInstance().then((value) => {
+      setState(() {
+        _sp = value;
+        if (_sp?.getBool(SP_AUTO_CHANGE_WALLPAPER) ?? false) {
+          _startChangeWallpaperTimer(_sp?.getString(SP_AUTO_CHANGE_WALLPAPER_DURATION) ?? "");
+        }
+      })
+    });
   }
 
   Future<void> _initSystemTray() async {
@@ -326,6 +341,35 @@ class _HomePageState extends State<HomePage> {
           break;
       }
     });
+  }
+
+  void _startChangeWallpaperTimer(String duration) {
+    _timer?.cancel();
+    if (duration == "") {
+      log("タイマーの設定をキャンセルしました。duration=$duration");
+      return;
+    }
+
+    var seconds = convertDurationToSeconds(duration);
+    if (seconds == 0) {
+      log("タイマーの設定をキャンセルしました。duration=$duration");
+      return;
+    }
+
+    setState(() {
+      log("タイマーを設定しました。duration=$duration");
+      _timer = Timer.periodic(Duration(seconds: seconds), (timer) {
+        var changedAt = DateTime.now().toIso8601String();
+        log("壁紙を変更します。changedAt=$changedAt");
+        _sp?.setString(SP_LAST_WALLPAPER_CHANGED_AT, changedAt);
+        _handleChangeRandomWallpaper();
+      });
+    });
+  }
+
+  void _stopChangeWallpaperTimer() {
+    _timer?.cancel();
+    log("タイマーを停止しました。");
   }
 
   @override
@@ -356,6 +400,7 @@ class _HomePageState extends State<HomePage> {
               _buildWidgetConnectedUser(context),
               _buildWidgetActions(context),
               _buildWidgetSummaryData(context),
+              _buildWidgetAutomaticallyChangeSettings(context),
             ],
           ),
         ),
@@ -363,7 +408,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  ///
+  /// 実行アクションを表示する
   Widget _buildWidgetActions(BuildContext context) {
     return Container(
       width: double.infinity,
@@ -394,7 +439,8 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text("Photos: $_mediaItemCount"),
+          Text("最終更新：${_sp?.getString(SP_LAST_WALLPAPER_CHANGED_AT) ?? "-"}"),
+          Text("写真：$_mediaItemCount"),
         ],
       ),
     );
@@ -419,6 +465,56 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  /// 自動更新設定
+  Widget _buildWidgetAutomaticallyChangeSettings(BuildContext context) {
+    return Container(
+      color: Colors.black26,
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 10.0),
+      padding: const EdgeInsets.all(10.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(right: 10),
+                child: Text("自動更新"),
+              ),
+              DropdownButton<String>(
+                value: _sp?.getString(SP_AUTO_CHANGE_WALLPAPER_DURATION) ?? "5m",
+                items: <String>["10s", "5m", "1h", "3h", "6h", "1d"].map<DropdownMenuItem<String>>((String value) {
+                  return DropdownMenuItem<String>(child: Text(value), value: value);
+                }).toList(),
+                onChanged: (String? newValue) {
+                  setState(() {
+                    _sp?.setString(SP_AUTO_CHANGE_WALLPAPER_DURATION, newValue ?? "");
+                  });
+                  if (_sp?.getBool(SP_AUTO_CHANGE_WALLPAPER) ?? false) {
+                    _startChangeWallpaperTimer(newValue ?? "");
+                  }
+                }
+              ),
+              Switch(
+                value: _sp?.getBool(SP_AUTO_CHANGE_WALLPAPER) ?? false,
+                onChanged: (value) {
+                  setState(() {
+                    _sp?.setBool(SP_AUTO_CHANGE_WALLPAPER, value);
+                  });
+                  if (value) {
+                    _startChangeWallpaperTimer(_sp?.getString(SP_AUTO_CHANGE_WALLPAPER_DURATION) ?? "");
+                  } else {
+                    _stopChangeWallpaperTimer();
+                  }
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
   /// 認証前の画面を表示する
   Widget _buildBodyLogin(BuildContext context) {
