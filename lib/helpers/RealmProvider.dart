@@ -1,6 +1,7 @@
 import 'package:realm/realm.dart';
 import 'package:wallpaper_changer/app.dart' as app;
 
+/// Realmのインスタンスをシングルトンで提供するためのクラス
 class RealmProvider {
   static final RealmProvider _singleton = RealmProvider._internal();
 
@@ -12,8 +13,8 @@ class RealmProvider {
 
   RealmProvider._internal();
 
+  /// Realmのセットアップ
   void init() {
-    // Realmのセットアップ
     var realmConfig = Configuration([app.User.schema, app.MediaItem.schema]);
     realmConfig.schemaVersion = 1;
     _realm = Realm(realmConfig);
