@@ -393,7 +393,7 @@ class _HomePageState extends State<HomePage> {
         width: 400,
         height: double.infinity,
         child: Padding(
-          padding: const EdgeInsets.all(10.0),
+          padding: const EdgeInsets.all(8),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.start,
             children: <Widget>[
@@ -412,17 +412,17 @@ class _HomePageState extends State<HomePage> {
   Widget _buildWidgetActions(BuildContext context) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(top: 10.0),
+      margin: const EdgeInsets.only(top: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: <Widget>[
           TextButton(
             onPressed: _handleChangeRandomWallpaper,
-            child: const Text("Change Wallpaper"),
+            child: const Text("壁紙を変更する"),
           ),
           TextButton(
             onPressed: _handleSync,
-            child: const Text("Sync"),
+            child: const Text("同期する"),
           ),
         ],
       ),
@@ -434,15 +434,15 @@ class _HomePageState extends State<HomePage> {
     return Container(
       color: Colors.black26,
       width: double.infinity,
-      margin: const EdgeInsets.only(top: 10.0),
-      padding: const EdgeInsets.all(10.0),
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Row(
             children: [
               const Padding(
-                padding: EdgeInsets.only(right: 10),
+                padding: EdgeInsets.only(right: 8),
                 child: Text("最終更新"),
               ),
               Text(_sp?.getString(SP_LAST_WALLPAPER_CHANGED_AT) ?? "-")
@@ -451,7 +451,7 @@ class _HomePageState extends State<HomePage> {
           Row(
             children: [
               const Padding(
-                padding: EdgeInsets.only(right: 10),
+                padding: EdgeInsets.only(right: 8),
                 child: Text("写真"),
               ),
               Text("$_mediaItemCount")
@@ -483,49 +483,60 @@ class _HomePageState extends State<HomePage> {
 
   /// 自動更新設定
   Widget _buildWidgetAutomaticallyChangeSettings(BuildContext context) {
-    return Container(
-      color: Colors.black26,
-      width: double.infinity,
-      margin: const EdgeInsets.only(top: 10.0),
-      padding: const EdgeInsets.all(10.0),
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
+        children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              const Padding(
-                padding: EdgeInsets.only(right: 10),
-                child: Text("自動更新"),
-              ),
-              DropdownButton<String>(
-                value: _sp?.getString(SP_AUTO_CHANGE_WALLPAPER_DURATION) ?? "5m",
-                items: <String>["10s", "5m", "1h", "3h", "6h", "1d"].map<DropdownMenuItem<String>>((String value) {
-                  return DropdownMenuItem<String>(child: Text(value), value: value);
-                }).toList(),
-                onChanged: (String? newValue) {
-                  setState(() {
-                    _sp?.setString(SP_AUTO_CHANGE_WALLPAPER_DURATION, newValue ?? "");
-                  });
-                  if (_sp?.getBool(SP_AUTO_CHANGE_WALLPAPER) ?? false) {
-                    _startChangeWallpaperTimer(newValue ?? "");
-                  }
-                }
-              ),
-              Switch(
-                value: _sp?.getBool(SP_AUTO_CHANGE_WALLPAPER) ?? false,
-                onChanged: (value) {
-                  setState(() {
-                    _sp?.setBool(SP_AUTO_CHANGE_WALLPAPER, value);
-                  });
-                  if (value) {
-                    _startChangeWallpaperTimer(_sp?.getString(SP_AUTO_CHANGE_WALLPAPER_DURATION) ?? "");
-                  } else {
-                    _stopChangeWallpaperTimer();
-                  }
-                },
-              ),
-            ],
+            children: const [ Text("自動更新") ],
+          ),
+          Container(
+            color: Colors.black26,
+            width: double.infinity,
+            margin: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.all(8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(right: 8),
+                      child: Text("間隔"),
+                    ),
+                    DropdownButton<String>(
+                      value: _sp?.getString(SP_AUTO_CHANGE_WALLPAPER_DURATION) ?? "5m",
+                      items: <String>["10s", "5m", "1h", "3h", "6h", "1d"].map<DropdownMenuItem<String>>((String value) {
+                        return DropdownMenuItem<String>(child: Text(value), value: value);
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          _sp?.setString(SP_AUTO_CHANGE_WALLPAPER_DURATION, newValue ?? "");
+                        });
+                        if (_sp?.getBool(SP_AUTO_CHANGE_WALLPAPER) ?? false) {
+                          _startChangeWallpaperTimer(newValue ?? "");
+                        }
+                      }
+                    ),
+                    Switch(
+                      value: _sp?.getBool(SP_AUTO_CHANGE_WALLPAPER) ?? false,
+                      onChanged: (value) {
+                        setState(() {
+                          _sp?.setBool(SP_AUTO_CHANGE_WALLPAPER, value);
+                        });
+                        if (value) {
+                          _startChangeWallpaperTimer(_sp?.getString(SP_AUTO_CHANGE_WALLPAPER_DURATION) ?? "");
+                        } else {
+                          _stopChangeWallpaperTimer();
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
