@@ -733,7 +733,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  ///
+  /// デフォルトの背景色を持つウィジェットを返す
   Widget _buildDefaultContainer({
     required BuildContext context,
     required Widget child,
@@ -794,6 +794,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  /// デフォルトのローディングアイコンを返す
   Widget _loadingIcon() {
     return const SpinKitFadingCircle(
       color: Colors.white,
