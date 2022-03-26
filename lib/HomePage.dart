@@ -326,7 +326,7 @@ class _HomePageState extends State<HomePage> {
   /// MediaItem の画像をダウンロードしてローカルのファイルパスを返す
   Future<String> _fetchMediaItemFilePath(app.MediaItem mediaItem) async {
     var dir = await _getMediaItemDir();
-    return path.join(dir.path, mediaItem.filename);
+    return path.join(dir.path, "${mediaItem.id}-${mediaItem.filename}");
   }
 
   Future<Directory> _getAppDataDir() async {
