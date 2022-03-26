@@ -58,6 +58,11 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
+    if (_currentUser == null) {
+      log("Google Photosに接続されていないので処理を中断します。");
+      return;
+    }
+
     try {
       setState(() {
         _syncPhotosProcessing = true;
@@ -206,6 +211,9 @@ class _HomePageState extends State<HomePage> {
 
     // 最終更新日時からduration分過ぎていれば処理を実行する
     var duration = _sp?.getString(SP_AUTO_CHANGE_WALLPAPER_DURATION) ?? "";
+    if (duration.isEmpty) {
+      return;
+    }
 
     try {
       var lastChangedAtStr = _sp?.getString(SP_LAST_WALLPAPER_CHANGED_AT) ?? "";
@@ -234,6 +242,9 @@ class _HomePageState extends State<HomePage> {
 
     // 最終更新日時からduration分過ぎていれば処理を実行する
     var duration = _sp?.getString(SP_AUTO_SYNC_PHOTOS_DURATION) ?? "";
+    if (duration.isEmpty) {
+      return;
+    }
 
     try {
       var lastSyncedAtStr = _sp?.getString(SP_LAST_PHOTOS_SYNCED_AT) ?? "";
