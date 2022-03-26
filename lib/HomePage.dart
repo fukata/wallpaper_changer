@@ -371,13 +371,14 @@ class _HomePageState extends State<HomePage> {
 
     return Center(
       child: SizedBox(
-        width: 400,
+        width: 440,
         height: double.infinity,
         child: Padding(
           padding: const EdgeInsets.all(8),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: <Widget>[
+          child: ListView(
+            padding: const EdgeInsets.only(left: 20, right: 20),
+            scrollDirection: Axis.vertical,
+            children: [
               _buildWidgetConnectedUser(context),
               _buildWidgetActions(context),
               _buildWidgetSummaryData(context),
