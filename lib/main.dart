@@ -1,7 +1,6 @@
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/material.dart';
-import 'package:wallpaper_changer/helpers/RealmProvider.dart';
-import 'package:wallpaper_changer/app.dart' as app;
+import 'package:wallpaper_changer/helpers/RealmUtil.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:realm/realm.dart';
 
@@ -16,7 +15,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Realmのセットアップ
-  RealmProvider().init();
+  initRealm();
 
   // アプリ実行
   runApp(const MyApp());

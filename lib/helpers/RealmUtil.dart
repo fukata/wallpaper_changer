@@ -13,7 +13,6 @@ class RealmProvider {
 
   RealmProvider._internal();
 
-  /// Realmのセットアップ
   void init() {
     var realmConfig = Configuration([User.schema, MediaItem.schema]);
     realmConfig.schemaVersion = 3;
@@ -23,6 +22,11 @@ class RealmProvider {
   Realm realm() {
     return _realm;
   }
+}
+
+/// Realmのセットアップ
+void initRealm() {
+  RealmProvider().init();
 }
 
 /// 簡単にアクセスするためのメソッド
