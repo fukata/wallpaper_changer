@@ -22,3 +22,10 @@ GOOGLE_CLIENT_SECRET='<YOUR GOOGLE CLIENT SECRET>'
 ```shell
 $ flutter pub run realm generate
 ```
+
+## msixパッケージを作る場合の注意点
+
+```shell
+$ flutter build windows --release
+$ flutter pub run msix:create
+```

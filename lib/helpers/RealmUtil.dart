@@ -1,5 +1,6 @@
 import 'package:realm/realm.dart';
 import 'package:wallpaper_changer/app.dart';
+import 'package:wallpaper_changer/helpers/PathUtil.dart';
 
 /// Realmのインスタンスをシングルトンで提供するためのクラス
 class RealmProvider {
@@ -13,8 +14,9 @@ class RealmProvider {
 
   RealmProvider._internal();
 
-  void init() {
+  Future<void> init() async {
     var realmConfig = Configuration([User.schema, MediaItem.schema]);
+    realmConfig.path = await getRealmPath();
     realmConfig.schemaVersion = 3;
     _realm = Realm(realmConfig);
   }
@@ -25,8 +27,8 @@ class RealmProvider {
 }
 
 /// Realmのセットアップ
-void initRealm() {
-  RealmProvider().init();
+Future<void> initRealm() async {
+  await RealmProvider().init();
 }
 
 /// 簡単にアクセスするためのメソッド

@@ -7,10 +7,10 @@ import 'package:ffi/ffi.dart';
 import 'package:googleapis/photoslibrary/v1.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
-import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wallpaper_changer/app.dart' as app;
 import 'package:wallpaper_changer/helpers/AuthUtil.dart';
+import 'package:wallpaper_changer/helpers/PathUtil.dart';
 import 'package:wallpaper_changer/helpers/RealmUtil.dart';
 import 'package:wallpaper_changer/helpers/Setting.dart';
 import 'package:win32/win32.dart';
@@ -141,13 +141,8 @@ Future<String> fetchMediaItemFilePath(app.MediaItem mediaItem) async {
   return path.join(dir.path, "${mediaItem.id}-${mediaItem.filename}");
 }
 
-Future<Directory> _getAppDataDir() async {
-  var dir = await getApplicationDocumentsDirectory();
-  return Directory(path.join(dir.path, 'WallpaperChanger'));
-}
-
 Future<Directory> _getMediaItemDir() async {
-  var dir = await _getAppDataDir();
+  var dir = await getAppDataDir();
   var mediaItemsDir = Directory(path.join(dir.path, 'MediaItems'));
   if (!mediaItemsDir.existsSync()) {
     mediaItemsDir.createSync(recursive: true);

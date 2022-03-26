@@ -437,7 +437,7 @@ packages:
     source: hosted
     version: "1.0.1"
   msix:
-    dependency: "direct main"
+    dependency: "direct dev"
     description:
       name: msix
       url: "https://pub.dartlang.org"
@@ -618,6 +618,20 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "0.2.1+alpha"
+  sentry:
+    dependency: transitive
+    description:
+      name: sentry
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "6.4.0"
+  sentry_flutter:
+    dependency: "direct main"
+    description:
+      name: sentry_flutter
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "6.4.0"
   shared_preferences:
     dependency: "direct main"
     description:
@@ -833,6 +847,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "3.0.0"
+  uuid:
+    dependency: transitive
+    description:
+      name: uuid
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "3.0.6"
   vector_math:
     dependency: transitive
     description:

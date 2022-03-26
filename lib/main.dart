@@ -4,6 +4,7 @@ import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/material.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:wallpaper_changer/helpers/RealmUtil.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -13,31 +14,38 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Dot env
-  await dotenv.load(fileName: '.env', mergeWith: Platform.environment);
+  await dotenv.load(fileName: '.env');
 
-  // 自動起動
-  PackageInfo packageInfo = await PackageInfo.fromPlatform();
-  LaunchAtStartup.instance.setup(
-    appName: packageInfo.appName,
-    appPath: Platform.resolvedExecutable,
+  await SentryFlutter.init(
+    (options) {
+      options.dsn = dotenv.env["SENTRY_DSN"];
+    },
+    appRunner: () async {
+      // 自動起動
+      PackageInfo packageInfo = await PackageInfo.fromPlatform();
+        LaunchAtStartup.instance.setup(
+        appName: packageInfo.appName,
+        appPath: Platform.resolvedExecutable,
+      );
+
+      // Realmのセットアップ
+      await initRealm();
+
+      // アプリ実行
+      runApp(const MyApp());
+
+      // ウィンドウサイズと初回起動時の位置を設定する
+      doWhenWindowReady(() {
+        final win = appWindow;
+        const initialSize = Size(500, 800);
+        win.minSize = initialSize;
+        win.size = initialSize;
+        win.alignment = Alignment.center;
+        win.title = "Wallpaper Changer";
+        win.show();
+      });
+    }
   );
-
-  // Realmのセットアップ
-  initRealm();
-
-  // アプリ実行
-  runApp(const MyApp());
-
-  // ウィンドウサイズと初回起動時の位置を設定する
-  doWhenWindowReady(() {
-    final win = appWindow;
-    const initialSize = Size(500, 800);
-    win.minSize = initialSize;
-    win.size = initialSize;
-    win.alignment = Alignment.center;
-    win.title = "Wallpaper Changer";
-    win.show();
-  });
 }
 
 class MyApp extends StatelessWidget {

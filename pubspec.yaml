@@ -74,8 +74,8 @@ dependencies:
   # ローディングアイコンを表示するために使用
   flutter_spinkit: ^5.1.0
 
-  # MSIXパッケージの作成するために使用
-  msix: ^3.4.1
+  # Sentryのために使用
+  sentry_flutter: ^6.4.0
 
 dev_dependencies:
   flutter_test:
@@ -87,6 +87,9 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^1.0.0
+
+  # MSIXパッケージの作成するために使用
+  msix: ^3.4.1
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -137,6 +140,8 @@ flutter:
 msix_config:
   display_name: Wallpaper Changer
   publisher_display_name: fukata.dev
-  identity_name: dev.fukata.wallpaper_changer
+  identity_name: dev.fukata.wallpaper-changer
   msix_version: 1.0.0.0
   logo_path: ./assets/app_icon.png
+  certificate_path: ./wallpaper_changer.pfx
+  certificate_password: ''
