@@ -13,7 +13,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Dot env
-  await dotenv.load(fileName: '.env');
+  await dotenv.load(fileName: '.env', mergeWith: Platform.environment);
 
   // 自動起動
   PackageInfo packageInfo = await PackageInfo.fromPlatform();
