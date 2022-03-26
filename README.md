@@ -1,8 +1,10 @@
 # wallpaper_changer
 
-This is Sample Project.
+これは Google Photos の写真を壁紙に設定するためのGUIアプリです。
 
-Change wallpaper for Windows.
+## 対応OS
+
+- Windows
 
 ## DEMO
 
@@ -17,15 +19,23 @@ GOOGLE_CLIENT_ID='<YOUR GOOGLE CLIENT ID>'
 GOOGLE_CLIENT_SECRET='<YOUR GOOGLE CLIENT SECRET>'
 ```
 
-## Generate Realm Model
+## データディレクトリを変更する
+
+環境変数 `APP_DATA_DIR` にディレクトリのパスを指定することでデータディレクトリを変更することが出来ます。
+
+```shell
+# .env
+APP_DATA_DIR='C:\Users\fukata\Documents\WallpaperChanger_dev'
+```
+
+## Realm Modelを生成する
 
 ```shell
 $ flutter pub run realm generate
 ```
 
-## msixパッケージを作る場合の注意点
+## msixパッケージを作る
 
 ```shell
-$ flutter build windows --release
 $ flutter pub run msix:create
 ```
