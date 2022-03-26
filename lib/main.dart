@@ -24,7 +24,7 @@ void main() async {
   // ウィンドウサイズと初回起動時の位置を設定する
   doWhenWindowReady(() {
     final win = appWindow;
-    final initialSize = Size(500, 700);
+    const initialSize = Size(500, 800);
     win.minSize = initialSize;
     win.size = initialSize;
     win.alignment = Alignment.center;

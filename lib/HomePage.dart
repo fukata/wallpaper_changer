@@ -43,12 +43,18 @@ class _HomePageState extends State<HomePage> {
 
   app.User? _currentUser;
   int _mediaItemCount = 0;
+
+  /// 壁紙を自動更新する時に使用するタイマー
   Timer? _autoChangeWallpaperTimer;
+
+  /// 画像データを定期的に取得するためのタイマー
+  Timer? _syncPhotosTimer;
 
   /// 画像データを取得する
   void _handleSync() async {
     var client = _makeAuthClientFromUser(_currentUser!);
-    await _loadGooglePhotos(client);
+    var maxFetchNum = _sp?.getInt(SP_SYNC_PHOTOS_PER_TIME) ?? 100;
+    await _loadGooglePhotos(client, maxFetchNum);
     setState(() {
       _mediaItemCount = realm().all<app.MediaItem>().length;
     });
@@ -128,7 +134,8 @@ class _HomePageState extends State<HomePage> {
       _currentUser = user;
     });
 
-    await _loadGooglePhotos(client);
+    var maxFetchNum = _sp?.getInt(SP_SYNC_PHOTOS_PER_TIME) ?? 100;
+    await _loadGooglePhotos(client, maxFetchNum);
     setState(() {
       _mediaItemCount = realm().all<app.MediaItem>().length;
     });
@@ -195,18 +202,44 @@ class _HomePageState extends State<HomePage> {
   }
 
   /// Google Photos から写真を読み込む
-  Future _loadGooglePhotos(AuthClient client) async {
+  Future _loadGooglePhotos(AuthClient client, int maxFetchNum) async {
     var photosApi = PhotosLibraryApi(client);
-    SearchMediaItemsRequest request = SearchMediaItemsRequest(
-      filters: Filters(mediaTypeFilter: MediaTypeFilter(mediaTypes: ['PHOTO'])),
-      orderBy: 'MediaMetadata.creation_time desc',
-      pageSize: 100,
-    );
-    var response = await photosApi.mediaItems.search(request);
-    if (response.mediaItems != null) {
-      for (var mediaItem in response.mediaItems!) {
+
+    int fetchedMediaItemsNum = 0;
+    String? nextPageToken;
+    while (fetchedMediaItemsNum < maxFetchNum) {
+      SearchMediaItemsRequest request = SearchMediaItemsRequest(
+        filters:
+            Filters(mediaTypeFilter: MediaTypeFilter(mediaTypes: ['PHOTO'])),
+        orderBy: 'MediaMetadata.creation_time desc',
+        pageSize: 100,
+        pageToken: nextPageToken,
+      );
+
+      var response = await photosApi.mediaItems.search(request);
+      if (response.mediaItems == null) {
+        break;
+      }
+
+      var mediaItems = response.mediaItems!;
+      if (mediaItems.isEmpty) {
+        break;
+      }
+
+      fetchedMediaItemsNum += mediaItems.length;
+
+      for (var mediaItem in mediaItems) {
         log("mediaItem=${mediaItem.toJson()}");
         _registerMediaItem(mediaItem);
+      }
+
+      if (fetchedMediaItemsNum > maxFetchNum) {
+        break;
+      }
+
+      nextPageToken = response.nextPageToken;
+      if (nextPageToken == null) {
+        break;
       }
     }
   }
@@ -358,6 +391,10 @@ class _HomePageState extends State<HomePage> {
               _startChangeWallpaperTimer(
                   _sp?.getString(SP_AUTO_CHANGE_WALLPAPER_DURATION) ?? "");
             }
+            if (_sp?.getBool(SP_AUTO_SYNC_PHOTOS) ?? false) {
+              _startSyncPhotosTimer(
+                  _sp?.getString(SP_AUTO_SYNC_PHOTOS_DURATION) ?? "");
+            }
           })
         });
   }
@@ -392,23 +429,25 @@ class _HomePageState extends State<HomePage> {
   void _startChangeWallpaperTimer(String duration) {
     _autoChangeWallpaperTimer?.cancel();
     if (duration == "") {
-      log("タイマーの設定をキャンセルしました。duration=$duration");
+      log("壁紙更新のタイマーの設定をキャンセルしました。duration=$duration");
       return;
     }
 
     var seconds = convertDurationToSeconds(duration);
     if (seconds == 0) {
-      log("タイマーの設定をキャンセルしました。duration=$duration");
+      log("壁紙更新のタイマーの設定をキャンセルしました。duration=$duration");
       return;
     }
 
     setState(() {
-      log("タイマーを設定しました。duration=$duration");
+      log("壁紙更新のタイマーを設定しました。duration=$duration");
       _autoChangeWallpaperTimer =
           Timer.periodic(Duration(seconds: seconds), (timer) {
         var changedAt = DateTime.now().toIso8601String();
         log("壁紙を変更します。changedAt=$changedAt");
-        _sp?.setString(SP_LAST_WALLPAPER_CHANGED_AT, changedAt);
+        setState(() {
+          _sp?.setString(SP_LAST_WALLPAPER_CHANGED_AT, changedAt);
+        });
         _handleChangeRandomWallpaper();
       });
     });
@@ -416,7 +455,7 @@ class _HomePageState extends State<HomePage> {
 
   void _stopChangeWallpaperTimer() {
     _autoChangeWallpaperTimer?.cancel();
-    log("タイマーを停止しました。");
+    log("壁紙更新のタイマーを停止しました。");
   }
 
   void _resetUserData() {
@@ -426,6 +465,37 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _mediaItemCount = 0;
     });
+  }
+
+  void _startSyncPhotosTimer(String duration) {
+    _syncPhotosTimer?.cancel();
+    if (duration == "") {
+      log("写真の自動同期のタイマーの設定をキャンセルしました。duration=$duration");
+      return;
+    }
+
+    var seconds = convertDurationToSeconds(duration);
+    if (seconds == 0) {
+      log("写真の自動同期のタイマーの設定をキャンセルしました。duration=$duration");
+      return;
+    }
+
+    setState(() {
+      log("写真の自動同期のタイマーを設定しました。duration=$duration");
+      _syncPhotosTimer = Timer.periodic(Duration(seconds: seconds), (timer) {
+        var syncedAt = DateTime.now().toIso8601String();
+        log("写真の自動同期を開始します。syncedAt=$syncedAt");
+        setState(() {
+          _sp?.setString(SP_LAST_PHOTOS_SYNCED_AT, syncedAt);
+        });
+        _handleSync();
+      });
+    });
+  }
+
+  void _stopSyncPhotosTimer() {
+    _syncPhotosTimer?.cancel();
+    log("写真の自動同期のタイマーを停止しました。");
   }
 
   @override
@@ -458,6 +528,7 @@ class _HomePageState extends State<HomePage> {
               _buildWidgetSummaryData(context),
               _buildWidgetAutomaticallyChangeSettings(context),
               _buildWidgetFilterSettings(context),
+              _buildWidgetAutomaticallySyncSettings(context),
             ],
           ),
         ),
@@ -500,6 +571,12 @@ class _HomePageState extends State<HomePage> {
             children: [
               _paddingRight(const Text("最終更新")),
               Text(_sp?.getString(SP_LAST_WALLPAPER_CHANGED_AT) ?? "-")
+            ],
+          ),
+          Row(
+            children: [
+              _paddingRight(const Text("最終同期")),
+              Text(_sp?.getString(SP_LAST_PHOTOS_SYNCED_AT) ?? "-")
             ],
           ),
           Row(
@@ -622,8 +699,8 @@ class _HomePageState extends State<HomePage> {
                       keyboardType: TextInputType.number,
                       maxLines: 1,
                       textAlign: TextAlign.right,
-                      textAlignVertical: TextAlignVertical.bottom,
-                      controller: TextEditingController(text: _sp?.getInt(SP_FILTER_WIDTH).toString() ?? ""),
+                      controller: TextEditingController(
+                          text: _sp?.getInt(SP_FILTER_WIDTH).toString() ?? ""),
                       onSubmitted: (value) {
                         setState(() {
                           try {
@@ -636,6 +713,86 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                   const Text("px"),
+                ],
+              ),
+            ],
+          )),
+    );
+  }
+
+  /// 画像の自動同期設定を表示する
+  Widget _buildWidgetAutomaticallySyncSettings(BuildContext context) {
+    return _buildWithSection(
+      context: context,
+      label: "写真の自動同期",
+      child: _buildDefaultContainer(
+          context: context,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  _paddingRight(const Text("間隔")),
+                  DropdownButton<String>(
+                      value:
+                          _sp?.getString(SP_AUTO_SYNC_PHOTOS_DURATION) ?? "1h",
+                      items: <String>["1h", "3h", "6h", "1d"]
+                          .map<DropdownMenuItem<String>>((String value) {
+                        return DropdownMenuItem<String>(
+                            child: Text(value), value: value);
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          _sp?.setString(
+                              SP_AUTO_SYNC_PHOTOS_DURATION, newValue ?? "");
+                        });
+                        if (_sp?.getBool(SP_AUTO_SYNC_PHOTOS) ?? false) {
+                          _startSyncPhotosTimer(newValue ?? "");
+                        }
+                      }),
+                  Switch(
+                    value: _sp?.getBool(SP_AUTO_SYNC_PHOTOS) ?? false,
+                    onChanged: (value) {
+                      setState(() {
+                        _sp?.setBool(SP_AUTO_SYNC_PHOTOS, value);
+                      });
+                      if (value) {
+                        _startSyncPhotosTimer(
+                            _sp?.getString(SP_AUTO_SYNC_PHOTOS_DURATION) ?? "");
+                      } else {
+                        _stopSyncPhotosTimer();
+                      }
+                    },
+                  ),
+                ],
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: <Widget>[
+                  _paddingRight(const Text("取得する枚数")),
+                  SizedBox(
+                    width: 60,
+                    child: TextField(
+                      keyboardType: TextInputType.number,
+                      maxLines: 1,
+                      textAlign: TextAlign.right,
+                      controller: TextEditingController(
+                          text: (_sp?.getInt(SP_SYNC_PHOTOS_PER_TIME) ?? 100)
+                              .toString()),
+                      onSubmitted: (value) {
+                        setState(() {
+                          try {
+                            _sp?.setInt(
+                                SP_SYNC_PHOTOS_PER_TIME, int.parse(value));
+                          } on Exception catch (e) {
+                            log(e.toString());
+                          }
+                        });
+                      },
+                    ),
+                  ),
+                  const Text("枚"),
                 ],
               ),
             ],
