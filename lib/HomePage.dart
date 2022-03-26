@@ -5,6 +5,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:googleapis/oauth2/v2.dart';
 import 'package:googleapis/photoslibrary/v1.dart';
 import 'package:googleapis_auth/auth_io.dart';
@@ -44,18 +45,35 @@ class _HomePageState extends State<HomePage> {
 
   /// 壁紙を自動更新する時に使用するタイマー
   Timer? _autoChangeWallpaperTimer;
+  bool _changeWallpaperProcessing = false;
 
   /// 画像データを定期的に取得するためのタイマー
   Timer? _syncPhotosTimer;
+  bool _syncPhotosProcessing = false;
 
   /// 画像データを取得する
   void _handleSync() async {
-    var client = makeGoogleAuthClientFromUser(_currentUser!);
-    var maxFetchNum = _sp?.getInt(SP_SYNC_PHOTOS_PER_TIME) ?? 100;
-    await loadGooglePhotos(client, maxFetchNum);
-    setState(() {
-      _mediaItemCount = realm().all<app.MediaItem>().length;
-    });
+    if (_syncPhotosProcessing) {
+      log("既に同期中なので処理を中断します。");
+      return;
+    }
+
+    try {
+      setState(() {
+        _syncPhotosProcessing = true;
+      });
+
+      var client = makeGoogleAuthClientFromUser(_currentUser!);
+      var maxFetchNum = _sp?.getInt(SP_SYNC_PHOTOS_PER_TIME) ?? 100;
+      await loadGooglePhotos(client, maxFetchNum);
+      setState(() {
+        _mediaItemCount = realm().all<app.MediaItem>().length;
+      });
+    } finally {
+      setState(() {
+        _syncPhotosProcessing = false;
+      });
+    }
   }
 
   /// Google Photos と OAuthを行う
@@ -131,20 +149,35 @@ class _HomePageState extends State<HomePage> {
 
   /// MediaItem の中からランダムに画像を選定して壁紙に設定する
   void _handleChangeRandomWallpaper() async {
-    var mediaItem = pickupRandomMediaItem(_sp);
-    if (mediaItem == null) {
+    if (_changeWallpaperProcessing) {
+      log("既に壁紙を変更中なので処理を中断します。");
       return;
     }
 
-    var filePath = await savedMediaItemFilePath(mediaItem);
-    realm().write(() {
-      mediaItem.cached = true;
-    });
+    try {
+      setState(() {
+        _changeWallpaperProcessing = true;
+      });
 
-    setWallpaper(filePath);
-    setState(() {
-      _wallpaperFilePath = filePath;
-    });
+      var mediaItem = pickupRandomMediaItem(_sp);
+      if (mediaItem == null) {
+        return;
+      }
+
+      var filePath = await savedMediaItemFilePath(mediaItem);
+      realm().write(() {
+        mediaItem.cached = true;
+      });
+
+      setWallpaper(filePath);
+      setState(() {
+        _wallpaperFilePath = filePath;
+      });
+    } finally {
+      setState(() {
+        _changeWallpaperProcessing = false;
+      });
+    }
   }
 
   @override
@@ -312,21 +345,52 @@ class _HomePageState extends State<HomePage> {
 
   /// 実行アクションを表示する
   Widget _buildWidgetActions(BuildContext context) {
+    List<Widget> children = [];
+
+    // 壁紙を変更する
+    if (_changeWallpaperProcessing) {
+      children.add(
+          Row(
+            children: [
+              _loadingIcon(),
+              const Text("壁紙を変更中..."),
+            ],
+          )
+      );
+    } else {
+      children.add(
+        TextButton(
+          onPressed: _handleChangeRandomWallpaper,
+          child: const Text("壁紙を変更する"),
+        )
+      );
+    }
+
+    // 同期する
+    if (_syncPhotosProcessing) {
+      children.add(
+        Row(
+          children: [
+            _loadingIcon(),
+            const Text("同期中..."),
+          ],
+        )
+      );
+    } else {
+      children.add(
+        TextButton(
+          onPressed: _handleSync,
+          child: const Text("同期する"),
+        )
+      );
+    }
+
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(top: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
-        children: <Widget>[
-          TextButton(
-            onPressed: _handleChangeRandomWallpaper,
-            child: const Text("壁紙を変更する"),
-          ),
-          TextButton(
-            onPressed: _handleSync,
-            child: const Text("同期する"),
-          ),
-        ],
+        children: children,
       ),
     );
   }
@@ -401,8 +465,8 @@ class _HomePageState extends State<HomePage> {
                   DropdownButton<String>(
                       value:
                           _sp?.getString(SP_AUTO_CHANGE_WALLPAPER_DURATION) ??
-                              "5m",
-                      items: <String>["10s", "5m", "1h", "3h", "6h", "1d"]
+                              DEFAULT_AUTO_CHANGE_WALLPAPER_DURATION,
+                      items: AUTO_CHANGE_WALLPAPER_DURATION_LIST
                           .map<DropdownMenuItem<String>>((String value) {
                         return DropdownMenuItem<String>(
                             child: Text(value), value: value);
@@ -510,8 +574,8 @@ class _HomePageState extends State<HomePage> {
                   _paddingRight(const Text("間隔")),
                   DropdownButton<String>(
                       value:
-                          _sp?.getString(SP_AUTO_SYNC_PHOTOS_DURATION) ?? "1h",
-                      items: <String>["1h", "3h", "6h", "1d"]
+                          _sp?.getString(SP_AUTO_SYNC_PHOTOS_DURATION) ?? DEFAULT_AUTO_SYNC_PHOTOS_DURATION,
+                      items: AUTO_SYNC_PHOTOS_DURATION_LIST
                           .map<DropdownMenuItem<String>>((String value) {
                         return DropdownMenuItem<String>(
                             child: Text(value), value: value);
@@ -666,6 +730,13 @@ class _HomePageState extends State<HomePage> {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: child,
+    );
+  }
+
+  Widget _loadingIcon() {
+    return const SpinKitFadingCircle(
+      color: Colors.white,
+      size: 16,
     );
   }
 }

@@ -1,3 +1,15 @@
+/// 壁紙を自動更新する間隔のデフォルト値
+const DEFAULT_AUTO_CHANGE_WALLPAPER_DURATION = "5m";
+
+/// 壁紙を自動更新する間隔の一覧
+const AUTO_CHANGE_WALLPAPER_DURATION_LIST = <String>["10s", "5m", "1h", "3h", "6h", "1d"];
+
+/// 写真の自動同期の間隔のデフォルト値
+const DEFAULT_AUTO_SYNC_PHOTOS_DURATION = "1h";
+
+/// 写真の自動同期の間隔の一覧
+const AUTO_SYNC_PHOTOS_DURATION_LIST = <String>["1h", "3h", "6h", "1d"];
+
 /// 最後に壁紙を更新した時刻
 const SP_LAST_WALLPAPER_CHANGED_AT = "last_wallpaper_changed_at";
 
