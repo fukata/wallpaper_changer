@@ -43,7 +43,7 @@ class _HomePageState extends State<HomePage> {
 
   app.User? _currentUser;
   int _mediaItemCount = 0;
-  Timer? _timer;
+  Timer? _autoChangeWallpaperTimer;
 
   /// 画像データを取得する
   void _handleSync() async {
@@ -58,11 +58,11 @@ class _HomePageState extends State<HomePage> {
     var file = File(filePath);
     if (!file.existsSync()) {
       // ファイルが存在しない
-      log("画像が存在しない。 filePath=$filePath");
+      log("画像が存在しません。 filePath=$filePath");
       return;
     }
 
-    log("壁紙を変更する。 filePath=$filePath");
+    log("壁紙を変更します。 filePath=$filePath");
 
     final hr = CoInitializeEx(
         nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
@@ -344,7 +344,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _startChangeWallpaperTimer(String duration) {
-    _timer?.cancel();
+    _autoChangeWallpaperTimer?.cancel();
     if (duration == "") {
       log("タイマーの設定をキャンセルしました。duration=$duration");
       return;
@@ -358,7 +358,7 @@ class _HomePageState extends State<HomePage> {
 
     setState(() {
       log("タイマーを設定しました。duration=$duration");
-      _timer = Timer.periodic(Duration(seconds: seconds), (timer) {
+      _autoChangeWallpaperTimer = Timer.periodic(Duration(seconds: seconds), (timer) {
         var changedAt = DateTime.now().toIso8601String();
         log("壁紙を変更します。changedAt=$changedAt");
         _sp?.setString(SP_LAST_WALLPAPER_CHANGED_AT, changedAt);
@@ -368,7 +368,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _stopChangeWallpaperTimer() {
-    _timer?.cancel();
+    _autoChangeWallpaperTimer?.cancel();
     log("タイマーを停止しました。");
   }
 
@@ -483,64 +483,81 @@ class _HomePageState extends State<HomePage> {
 
   /// 自動更新設定
   Widget _buildWidgetAutomaticallyChangeSettings(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: const [ Text("自動更新") ],
-          ),
-          Container(
-            color: Colors.black26,
-            width: double.infinity,
-            margin: const EdgeInsets.only(top: 8),
-            padding: const EdgeInsets.all(8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.only(right: 8),
-                      child: Text("間隔"),
-                    ),
-                    DropdownButton<String>(
-                      value: _sp?.getString(SP_AUTO_CHANGE_WALLPAPER_DURATION) ?? "5m",
-                      items: <String>["10s", "5m", "1h", "3h", "6h", "1d"].map<DropdownMenuItem<String>>((String value) {
-                        return DropdownMenuItem<String>(child: Text(value), value: value);
-                      }).toList(),
-                      onChanged: (String? newValue) {
-                        setState(() {
-                          _sp?.setString(SP_AUTO_CHANGE_WALLPAPER_DURATION, newValue ?? "");
-                        });
-                        if (_sp?.getBool(SP_AUTO_CHANGE_WALLPAPER) ?? false) {
-                          _startChangeWallpaperTimer(newValue ?? "");
-                        }
-                      }
-                    ),
-                    Switch(
-                      value: _sp?.getBool(SP_AUTO_CHANGE_WALLPAPER) ?? false,
-                      onChanged: (value) {
-                        setState(() {
-                          _sp?.setBool(SP_AUTO_CHANGE_WALLPAPER, value);
-                        });
-                        if (value) {
-                          _startChangeWallpaperTimer(_sp?.getString(SP_AUTO_CHANGE_WALLPAPER_DURATION) ?? "");
-                        } else {
-                          _stopChangeWallpaperTimer();
-                        }
-                      },
-                    ),
-                  ],
+    return _buildWithSection(
+      context: context,
+      label: "自動更新",
+      child: Container(
+        color: Colors.black26,
+        width: double.infinity,
+        margin: const EdgeInsets.only(top: 8),
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(right: 8),
+                  child: Text("間隔"),
+                ),
+                DropdownButton<String>(
+                  value: _sp?.getString(SP_AUTO_CHANGE_WALLPAPER_DURATION) ?? "5m",
+                  items: <String>["10s", "5m", "1h", "3h", "6h", "1d"].map<DropdownMenuItem<String>>((String value) {
+                    return DropdownMenuItem<String>(child: Text(value), value: value);
+                  }).toList(),
+                  onChanged: (String? newValue) {
+                    setState(() {
+                      _sp?.setString(SP_AUTO_CHANGE_WALLPAPER_DURATION, newValue ?? "");
+                    });
+                    if (_sp?.getBool(SP_AUTO_CHANGE_WALLPAPER) ?? false) {
+                      _startChangeWallpaperTimer(newValue ?? "");
+                    }
+                  }
+                ),
+                Switch(
+                  value: _sp?.getBool(SP_AUTO_CHANGE_WALLPAPER) ?? false,
+                  onChanged: (value) {
+                    setState(() {
+                      _sp?.setBool(SP_AUTO_CHANGE_WALLPAPER, value);
+                    });
+                    if (value) {
+                      _startChangeWallpaperTimer(_sp?.getString(SP_AUTO_CHANGE_WALLPAPER_DURATION) ?? "");
+                    } else {
+                      _stopChangeWallpaperTimer();
+                    }
+                  },
                 ),
               ],
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
+      )
     );
+  }
+
+  /// セクション付きのウィジェットを返す
+  ///
+  /// @param child セクションのウィジェット
+  /// @param context コンテキスト
+  /// @param label セクション名
+  Widget _buildWithSection({
+    required Widget child,
+    required BuildContext context,
+    required String label
+  }) {
+    return Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [ Text(label) ],
+            ),
+            child,
+          ],
+        ),
+      );
   }
 
   /// 認証前の画面を表示する
@@ -551,7 +568,7 @@ class _HomePageState extends State<HomePage> {
         children: <Widget>[
           TextButton(
             onPressed: _handleGooglePhotosAuth,
-            child: const Text("Connect to Google Photos"),
+            child: const Text("Google Photosに接続する"),
           ),
         ],
       ),
