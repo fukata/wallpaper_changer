@@ -19,4 +19,7 @@ class _MediaItem {
   late String id;
   late String filename;
   late String mimeType;
+  late int width;
+  late int height;
+  late bool cached;
 }

@@ -16,7 +16,7 @@ class RealmProvider {
   /// Realmのセットアップ
   void init() {
     var realmConfig = Configuration([User.schema, MediaItem.schema]);
-    realmConfig.schemaVersion = 1;
+    realmConfig.schemaVersion = 3;
     _realm = Realm(realmConfig);
   }
 

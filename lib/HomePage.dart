@@ -187,7 +187,7 @@ class _HomePageState extends State<HomePage> {
         'https://www.googleapis.com/auth/userinfo.profile',
         'https://www.googleapis.com/auth/photoslibrary.readonly',
       ],
-          (String url) {
+      (String url) {
         log("url=$url");
         launch(url);
       },
@@ -218,8 +218,14 @@ class _HomePageState extends State<HomePage> {
       return mediaItems.first;
     }
 
-    var newMediaItem =
-    app.MediaItem(mediaItem.id!, mediaItem.filename!, mediaItem.mimeType!);
+    var meta = mediaItem.mediaMetadata!;
+    var newMediaItem = app.MediaItem(
+        mediaItem.id!,
+        mediaItem.filename!,
+        mediaItem.mimeType!,
+        meta.width == null ? 0 : int.parse(meta.width!),
+        meta.height == null ? 0 : int.parse(meta.height!),
+        false);
     realm().write(() {
       realm().add(newMediaItem);
     });
@@ -229,21 +235,55 @@ class _HomePageState extends State<HomePage> {
 
   /// MediaItem の中からランダムに画像を選定して壁紙に設定する
   void _handleChangeRandomWallpaper() async {
-    var mediaItems = realm().all<app.MediaItem>();
-    var total = mediaItems.length;
-    log("MediaItem total is $total");
-    if (total == 0) {
+    var mediaItem = _pickupRandomMediaItem();
+    if (mediaItem == null) {
       return;
     }
 
-    var idx = math.Random.secure().nextInt(total);
-    var mediaItem = mediaItems.elementAt(idx);
-
     var filePath = await _savedMediaItemFilePath(mediaItem);
+    realm().write(() {
+      mediaItem.cached = true;
+    });
+
     _setWallpaper(filePath);
     setState(() {
       _wallpaperFilePath = filePath;
     });
+  }
+
+  /// 壁紙に使用する画像をランダムに選定する
+  app.MediaItem? _pickupRandomMediaItem() {
+    var mediaItems = realm().all<app.MediaItem>();
+    var total = mediaItems.length;
+    log("MediaItem total is $total");
+    if (total == 0) {
+      return null;
+    }
+
+    // フィルタリング
+    var filterOnlyLandscape = _sp?.getBool(SP_FILTER_ONLY_LANDSCAPE) ?? false;
+    var filterWidth = _sp?.getInt(SP_FILTER_WIDTH) ?? 0;
+    log("フィルタリング：横向きのみ=$filterOnlyLandscape, 幅=$filterWidth");
+    var filteredMediaItems = mediaItems.where((mediaItem) {
+      if (filterWidth > 0 && mediaItem.width < filterWidth) {
+        return false;
+      }
+      if (filterOnlyLandscape && mediaItem.width <= mediaItem.height) {
+        return false;
+      }
+
+      return true;
+    });
+    if (filteredMediaItems.length == 0) {
+      log("フィルタリングの結果、対象の画像がありませんでした。");
+      return null;
+    }
+
+    var idx = math.Random.secure().nextInt(filteredMediaItems.length);
+    var mediaItem = filteredMediaItems.elementAt(idx);
+    log("Choose mediaItem. id=${mediaItem.id}, filename=${mediaItem.filename}, width=${mediaItem.width}, height=${mediaItem.height}");
+
+    return mediaItem;
   }
 
   Future<String> _savedMediaItemFilePath(app.MediaItem mediaItem) async {
@@ -262,7 +302,8 @@ class _HomePageState extends State<HomePage> {
     var extension = "jpg";
     var url = Uri.parse("${_mediaItem.baseUrl}=w10240-h10240-no?.$extension");
     var response = await http.get(url);
-    if (response.statusCode >= 200 || response.statusCode <= 399 && response.bodyBytes.isNotEmpty) {
+    if (response.statusCode >= 200 ||
+        response.statusCode <= 399 && response.bodyBytes.isNotEmpty) {
       File(path).writeAsBytesSync(response.bodyBytes);
     }
 
@@ -271,13 +312,15 @@ class _HomePageState extends State<HomePage> {
 
   /// googleapis の呼び出しに必要な AuthClient を User から生成する
   AutoRefreshingAuthClient _makeAuthClientFromUser(app.User user) {
-    var accessToken = AccessToken('Bearer', user.accessToken, DateTime(2022, 1, 1).toUtc());
-    var credentials = AccessCredentials(accessToken, user.refreshToken, user.scope.split(','));
+    var accessToken =
+        AccessToken('Bearer', user.accessToken, DateTime(2022, 1, 1).toUtc());
+    var credentials = AccessCredentials(
+        accessToken, user.refreshToken, user.scope.split(','));
     return AutoRefreshingClient(
         http.Client(),
-        ClientId(dotenv.env["GOOGLE_CLIENT_ID"]!, dotenv.env["GOOGLE_CLIENT_SECRET"]!),
-        credentials
-    );
+        ClientId(dotenv.env["GOOGLE_CLIENT_ID"]!,
+            dotenv.env["GOOGLE_CLIENT_SECRET"]!),
+        credentials);
   }
 
   /// MediaItem の画像をダウンロードしてローカルのファイルパスを返す
@@ -309,30 +352,33 @@ class _HomePageState extends State<HomePage> {
     _mediaItemCount = realm().all<app.MediaItem>().length;
 
     SharedPreferences.getInstance().then((value) => {
-      setState(() {
-        _sp = value;
-        if (_sp?.getBool(SP_AUTO_CHANGE_WALLPAPER) ?? false) {
-          _startChangeWallpaperTimer(_sp?.getString(SP_AUTO_CHANGE_WALLPAPER_DURATION) ?? "");
-        }
-      })
-    });
+          setState(() {
+            _sp = value;
+            if (_sp?.getBool(SP_AUTO_CHANGE_WALLPAPER) ?? false) {
+              _startChangeWallpaperTimer(
+                  _sp?.getString(SP_AUTO_CHANGE_WALLPAPER_DURATION) ?? "");
+            }
+          })
+        });
   }
 
   Future<void> _initSystemTray() async {
-    String iconPath = Platform.isWindows ? 'assets/app_icon.ico' : 'assets/app_icon.png';
+    String iconPath =
+        Platform.isWindows ? 'assets/app_icon.ico' : 'assets/app_icon.png';
 
     final menus = <MenuItemBase>[
       MenuItem(label: "Show", onClicked: _appWindow.show),
       MenuItem(label: "Hide", onClicked: _appWindow.hide),
     ];
 
-    await _systemTray.initSystemTray(title: "system tray", iconPath: iconPath, toolTip: "Wallpaper Changer");
+    await _systemTray.initSystemTray(
+        title: "system tray", iconPath: iconPath, toolTip: "Wallpaper Changer");
     await _systemTray.setContextMenu(menus);
 
     // handle system tray event
     _systemTray.registerSystemTrayEventHandler((eventName) {
       debugPrint("eventName: $eventName");
-      switch(eventName) {
+      switch (eventName) {
         case "leftMouseUp":
           _appWindow.show();
           break;
@@ -358,7 +404,8 @@ class _HomePageState extends State<HomePage> {
 
     setState(() {
       log("タイマーを設定しました。duration=$duration");
-      _autoChangeWallpaperTimer = Timer.periodic(Duration(seconds: seconds), (timer) {
+      _autoChangeWallpaperTimer =
+          Timer.periodic(Duration(seconds: seconds), (timer) {
         var changedAt = DateTime.now().toIso8601String();
         log("壁紙を変更します。changedAt=$changedAt");
         _sp?.setString(SP_LAST_WALLPAPER_CHANGED_AT, changedAt);
@@ -370,6 +417,15 @@ class _HomePageState extends State<HomePage> {
   void _stopChangeWallpaperTimer() {
     _autoChangeWallpaperTimer?.cancel();
     log("タイマーを停止しました。");
+  }
+
+  void _resetUserData() {
+    realm().write(() {
+      realm().deleteAll<app.MediaItem>();
+    });
+    setState(() {
+      _mediaItemCount = 0;
+    });
   }
 
   @override
@@ -401,6 +457,7 @@ class _HomePageState extends State<HomePage> {
               _buildWidgetActions(context),
               _buildWidgetSummaryData(context),
               _buildWidgetAutomaticallyChangeSettings(context),
+              _buildWidgetFilterSettings(context),
             ],
           ),
         ),
@@ -441,20 +498,15 @@ class _HomePageState extends State<HomePage> {
         children: <Widget>[
           Row(
             children: [
-              const Padding(
-                padding: EdgeInsets.only(right: 8),
-                child: Text("最終更新"),
-              ),
+              _paddingRight(const Text("最終更新")),
               Text(_sp?.getString(SP_LAST_WALLPAPER_CHANGED_AT) ?? "-")
             ],
           ),
           Row(
             children: [
-              const Padding(
-                padding: EdgeInsets.only(right: 8),
-                child: Text("写真"),
-              ),
-              Text("$_mediaItemCount")
+              _paddingRight(const Text("写真")),
+              _paddingRight(Text("$_mediaItemCount")),
+              TextButton(onPressed: _resetUserData, child: Text("リセットする"))
             ],
           ),
         ],
@@ -484,55 +536,124 @@ class _HomePageState extends State<HomePage> {
   /// 自動更新設定
   Widget _buildWidgetAutomaticallyChangeSettings(BuildContext context) {
     return _buildWithSection(
+        context: context,
+        label: "自動更新",
+        child: _buildDefaultContainer(
+          context: context,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  _paddingRight(const Text("間隔")),
+                  DropdownButton<String>(
+                      value:
+                          _sp?.getString(SP_AUTO_CHANGE_WALLPAPER_DURATION) ??
+                              "5m",
+                      items: <String>["10s", "5m", "1h", "3h", "6h", "1d"]
+                          .map<DropdownMenuItem<String>>((String value) {
+                        return DropdownMenuItem<String>(
+                            child: Text(value), value: value);
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          _sp?.setString(SP_AUTO_CHANGE_WALLPAPER_DURATION,
+                              newValue ?? "");
+                        });
+                        if (_sp?.getBool(SP_AUTO_CHANGE_WALLPAPER) ?? false) {
+                          _startChangeWallpaperTimer(newValue ?? "");
+                        }
+                      }),
+                  Switch(
+                    value: _sp?.getBool(SP_AUTO_CHANGE_WALLPAPER) ?? false,
+                    onChanged: (value) {
+                      setState(() {
+                        _sp?.setBool(SP_AUTO_CHANGE_WALLPAPER, value);
+                      });
+                      if (value) {
+                        _startChangeWallpaperTimer(
+                            _sp?.getString(SP_AUTO_CHANGE_WALLPAPER_DURATION) ??
+                                "");
+                      } else {
+                        _stopChangeWallpaperTimer();
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ));
+  }
+
+  /// 壁紙の対象となる画像のフィルタリング設定を表示する
+  Widget _buildWidgetFilterSettings(BuildContext context) {
+    return _buildWithSection(
       context: context,
-      label: "自動更新",
-      child: Container(
-        color: Colors.black26,
-        width: double.infinity,
-        margin: const EdgeInsets.only(top: 8),
-        padding: const EdgeInsets.all(8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.only(right: 8),
-                  child: Text("間隔"),
-                ),
-                DropdownButton<String>(
-                  value: _sp?.getString(SP_AUTO_CHANGE_WALLPAPER_DURATION) ?? "5m",
-                  items: <String>["10s", "5m", "1h", "3h", "6h", "1d"].map<DropdownMenuItem<String>>((String value) {
-                    return DropdownMenuItem<String>(child: Text(value), value: value);
-                  }).toList(),
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      _sp?.setString(SP_AUTO_CHANGE_WALLPAPER_DURATION, newValue ?? "");
-                    });
-                    if (_sp?.getBool(SP_AUTO_CHANGE_WALLPAPER) ?? false) {
-                      _startChangeWallpaperTimer(newValue ?? "");
-                    }
-                  }
-                ),
-                Switch(
-                  value: _sp?.getBool(SP_AUTO_CHANGE_WALLPAPER) ?? false,
-                  onChanged: (value) {
-                    setState(() {
-                      _sp?.setBool(SP_AUTO_CHANGE_WALLPAPER, value);
-                    });
-                    if (value) {
-                      _startChangeWallpaperTimer(_sp?.getString(SP_AUTO_CHANGE_WALLPAPER_DURATION) ?? "");
-                    } else {
-                      _stopChangeWallpaperTimer();
-                    }
-                  },
-                ),
-              ],
-            ),
-          ],
-        ),
-      )
+      label: "フィルタリング",
+      child: _buildDefaultContainer(
+          context: context,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Text("壁紙として使用する画像のフィルタリングを設定できます。"),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: <Widget>[
+                  _paddingRight(const Text("横向きの画像のみ使用する")),
+                  Switch(
+                    value: _sp?.getBool(SP_FILTER_ONLY_LANDSCAPE) ?? false,
+                    onChanged: (value) {
+                      setState(() {
+                        _sp?.setBool(SP_FILTER_ONLY_LANDSCAPE, value);
+                      });
+                    },
+                  ),
+                ],
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: <Widget>[
+                  _paddingRight(const Text("width > ")),
+                  SizedBox(
+                    width: 60,
+                    child: TextField(
+                      keyboardType: TextInputType.number,
+                      maxLines: 1,
+                      textAlign: TextAlign.right,
+                      textAlignVertical: TextAlignVertical.bottom,
+                      controller: TextEditingController(text: _sp?.getInt(SP_FILTER_WIDTH).toString() ?? ""),
+                      onSubmitted: (value) {
+                        setState(() {
+                          try {
+                            _sp?.setInt(SP_FILTER_WIDTH, int.parse(value));
+                          } on Exception catch (e) {
+                            log(e.toString());
+                          }
+                        });
+                      },
+                    ),
+                  ),
+                  const Text("px"),
+                ],
+              ),
+            ],
+          )),
+    );
+  }
+
+  ///
+  Widget _buildDefaultContainer({
+    required BuildContext context,
+    required Widget child,
+  }) {
+    return Container(
+      color: Colors.black26,
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(8),
+      child: child,
     );
   }
 
@@ -542,22 +663,22 @@ class _HomePageState extends State<HomePage> {
   /// @param context コンテキスト
   /// @param label セクション名
   Widget _buildWithSection({
-    required Widget child,
     required BuildContext context,
-    required String label
+    required String label,
+    required Widget child,
   }) {
     return Padding(
-        padding: const EdgeInsets.only(top: 8),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [ Text(label) ],
-            ),
-            child,
-          ],
-        ),
-      );
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [Text(label)],
+          ),
+          child,
+        ],
+      ),
+    );
   }
 
   /// 認証前の画面を表示する
@@ -572,7 +693,14 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
+    );
+  }
 
+  /// 右に余白があるウィジェットを生成
+  Widget _paddingRight(Widget child) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: child,
     );
   }
 }

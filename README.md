@@ -16,3 +16,9 @@ Change wallpaper for Windows.
 GOOGLE_CLIENT_ID='<YOUR GOOGLE CLIENT ID>'
 GOOGLE_CLIENT_SECRET='<YOUR GOOGLE CLIENT SECRET>'
 ```
+
+## Generate Realm Model
+
+```shell
+$ flutter pub run realm generate
+```
