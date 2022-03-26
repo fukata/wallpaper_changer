@@ -9,6 +9,7 @@ import 'package:googleapis/oauth2/v2.dart';
 import 'package:googleapis/photoslibrary/v1.dart';
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:http/http.dart' as http;
+import 'package:launch_at_startup/launch_at_startup.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:system_tray/system_tray.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -164,6 +165,9 @@ class _HomePageState extends State<HomePage> {
               _startSyncPhotosTimer(
                   _sp?.getString(SP_AUTO_SYNC_PHOTOS_DURATION) ?? "");
             }
+            if (_sp?.getBool(SP_AUTO_LAUNCH) ?? false) {
+              launchAtStartup.enable();
+            }
           })
         });
   }
@@ -298,6 +302,7 @@ class _HomePageState extends State<HomePage> {
               _buildWidgetAutomaticallyChangeSettings(context),
               _buildWidgetFilterSettings(context),
               _buildWidgetAutomaticallySyncSettings(context),
+              _buildWidgetAutomaticallyLaunchSettings(context),
             ],
           ),
         ),
@@ -562,6 +567,40 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                   const Text("枚"),
+                ],
+              ),
+            ],
+          )),
+    );
+  }
+
+  /// 自動起動設定を表示する
+  Widget _buildWidgetAutomaticallyLaunchSettings(BuildContext context) {
+    return _buildWithSection(
+      context: context,
+      label: "自動起動",
+      child: _buildDefaultContainer(
+          context: context,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  _paddingRight(const Text("自動起動する")),
+                  Switch(
+                    value: _sp?.getBool(SP_AUTO_LAUNCH) ?? false,
+                    onChanged: (value) {
+                      setState(() {
+                        _sp?.setBool(SP_AUTO_LAUNCH, value);
+                      });
+                      if (value) {
+                        launchAtStartup.enable();
+                      } else {
+                        launchAtStartup.disable();
+                      }
+                    },
+                  ),
                 ],
               ),
             ],

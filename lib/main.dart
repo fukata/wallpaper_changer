@@ -1,18 +1,26 @@
+import 'dart:io';
+
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/material.dart';
+import 'package:launch_at_startup/launch_at_startup.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:wallpaper_changer/helpers/RealmUtil.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:realm/realm.dart';
 
 import 'HomePage.dart';
 
-late Realm realm;
-
 void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
   // Dot env
   await dotenv.load(fileName: '.env');
 
-  WidgetsFlutterBinding.ensureInitialized();
+  // 自動起動
+  PackageInfo packageInfo = await PackageInfo.fromPlatform();
+  LaunchAtStartup.instance.setup(
+    appName: packageInfo.appName,
+    appPath: Platform.resolvedExecutable,
+  );
 
   // Realmのセットアップ
   initRealm();
@@ -23,7 +31,7 @@ void main() async {
   // ウィンドウサイズと初回起動時の位置を設定する
   doWhenWindowReady(() {
     final win = appWindow;
-    const initialSize = Size(500, 800);
+    const initialSize = Size(500, 900);
     win.minSize = initialSize;
     win.size = initialSize;
     win.alignment = Alignment.center;

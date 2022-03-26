@@ -24,3 +24,6 @@ const SP_LAST_PHOTOS_SYNCED_AT = "last_photos_synced_at";
 
 /// 1度に同期する写真の枚数
 const SP_SYNC_PHOTOS_PER_TIME = "sync_photos_per_time";
+
+/// 自動起動するかどうか
+const SP_AUTO_LAUNCH = "auto_launch";
