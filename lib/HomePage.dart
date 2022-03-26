@@ -190,19 +190,68 @@ class _HomePageState extends State<HomePage> {
     SharedPreferences.getInstance().then((value) => {
           setState(() {
             _sp = value;
-            if (_sp?.getBool(SP_AUTO_CHANGE_WALLPAPER) ?? false) {
-              _startChangeWallpaperTimer(
-                  _sp?.getString(SP_AUTO_CHANGE_WALLPAPER_DURATION) ?? "");
-            }
-            if (_sp?.getBool(SP_AUTO_SYNC_PHOTOS) ?? false) {
-              _startSyncPhotosTimer(
-                  _sp?.getString(SP_AUTO_SYNC_PHOTOS_DURATION) ?? "");
-            }
+            initChangeWallpaperState();
+            initSyncPhotosState();
             if (_sp?.getBool(SP_AUTO_LAUNCH) ?? false) {
               launchAtStartup.enable();
             }
           })
         });
+  }
+
+  void initChangeWallpaperState() {
+    if (!(_sp?.getBool(SP_AUTO_CHANGE_WALLPAPER) ?? false)) {
+      return;
+    }
+
+    // 最終更新日時からduration分過ぎていれば処理を実行する
+    var duration = _sp?.getString(SP_AUTO_CHANGE_WALLPAPER_DURATION) ?? "";
+
+    try {
+      var lastChangedAtStr = _sp?.getString(SP_LAST_WALLPAPER_CHANGED_AT) ?? "";
+      if (lastChangedAtStr.isNotEmpty) {
+        var lastChangedAt = DateTime.parse(lastChangedAtStr);
+        var now = DateTime.now();
+        if (now.compareTo(lastChangedAt.add(Duration(seconds: convertDurationToSeconds(duration)))) == 1) {
+          log("前回の変更時刻 $lastChangedAt から $duration を過ぎているので壁紙を更新します。");
+          setState(() {
+            _sp?.setString(SP_LAST_WALLPAPER_CHANGED_AT, now.toIso8601String());
+          });
+          _handleChangeRandomWallpaper();
+        }
+      }
+    } on Exception catch (e) {
+      log(e.toString());
+    }
+
+    _startChangeWallpaperTimer(duration);
+  }
+
+  void initSyncPhotosState() {
+    if (!(_sp?.getBool(SP_AUTO_SYNC_PHOTOS) ?? false)) {
+      return;
+    }
+
+    // 最終更新日時からduration分過ぎていれば処理を実行する
+    var duration = _sp?.getString(SP_AUTO_SYNC_PHOTOS_DURATION) ?? "";
+
+    try {
+      var lastSyncedAtStr = _sp?.getString(SP_LAST_PHOTOS_SYNCED_AT) ?? "";
+      if (lastSyncedAtStr.isNotEmpty) {
+        var lastSyncedAt = DateTime.parse(lastSyncedAtStr);
+        var now = DateTime.now();
+        if (now.compareTo(lastSyncedAt.add(Duration(seconds: convertDurationToSeconds(duration)))) == 1) {
+          log("前回の同期時刻 $lastSyncedAt から $duration を過ぎているので同期します。");
+          setState(() {
+            _sp?.setString(SP_LAST_PHOTOS_SYNCED_AT, now.toIso8601String());
+          });
+          _handleSync();
+        }
+      }
+    } on Exception catch (e) {
+      log(e.toString());
+    }
+    _startSyncPhotosTimer(duration);
   }
 
   Future<void> _initSystemTray() async {
