@@ -387,13 +387,6 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "4.4.0"
-  launch_at_startup:
-    dependency: "direct main"
-    description:
-      name: launch_at_startup
-      url: "https://pub.dartlang.org"
-    source: hosted
-    version: "0.1.7"
   lints:
     dependency: transitive
     description:
@@ -451,7 +444,7 @@ packages:
     source: hosted
     version: "2.0.2"
   package_info_plus:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: package_info_plus
       url: "https://pub.dartlang.org"
@@ -882,13 +875,6 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "2.4.2"
-  win32_registry:
-    dependency: transitive
-    description:
-      name: win32_registry
-      url: "https://pub.dartlang.org"
-    source: hosted
-    version: "0.1.2"
   xdg_directories:
     dependency: transitive
     description:

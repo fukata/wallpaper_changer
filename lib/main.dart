@@ -1,12 +1,8 @@
-import 'dart:io';
-
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/material.dart';
-import 'package:launch_at_startup/launch_at_startup.dart';
-import 'package:package_info_plus/package_info_plus.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:wallpaper_changer/helpers/RealmUtil.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'HomePage.dart';
 
@@ -21,13 +17,6 @@ void main() async {
       options.dsn = dotenv.env["SENTRY_DSN"];
     },
     appRunner: () async {
-      // 自動起動
-      PackageInfo packageInfo = await PackageInfo.fromPlatform();
-      LaunchAtStartup.instance.setup(
-        appName: packageInfo.appName,
-        appPath: Platform.resolvedExecutable,
-      );
-
       // Realmのセットアップ
       await initRealm();
 
