@@ -145,3 +145,4 @@ msix_config:
   logo_path: ./assets/app_icon.png
   certificate_path: ./wallpaper_changer.pfx
   certificate_password: ''
+  enable_at_startup: true

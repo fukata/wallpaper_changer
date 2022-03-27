@@ -23,7 +23,7 @@ void main() async {
     appRunner: () async {
       // 自動起動
       PackageInfo packageInfo = await PackageInfo.fromPlatform();
-        LaunchAtStartup.instance.setup(
+      LaunchAtStartup.instance.setup(
         appName: packageInfo.appName,
         appPath: Platform.resolvedExecutable,
       );
