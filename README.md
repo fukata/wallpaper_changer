@@ -6,9 +6,9 @@
 
 - Windows
 
-## DEMO
+## デモ
 
-[DEMO](https://gyazo.com/3eba8cd1e27cd520059fb07f88eed8a4)
+[動画](https://gyazo.com/b43e84122321498834c30caba8029777)
 
 ## Setup
 
