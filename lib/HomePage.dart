@@ -389,8 +389,8 @@ class _HomePageState extends State<HomePage> {
               _buildWidgetActions(context),
               _buildWidgetSummaryData(context),
               _buildWidgetAutomaticallyChangeSettings(context),
-              _buildWidgetFilterSettings(context),
               _buildWidgetAutomaticallySyncSettings(context),
+              _buildWidgetFilterSettings(context),
             ]
           ),
         ),
