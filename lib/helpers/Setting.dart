@@ -22,6 +22,9 @@ const SP_AUTO_CHANGE_WALLPAPER_DURATION = "auto_change_wallpaper_duration";
 /// フィルタリング：横幅
 const SP_FILTER_WIDTH = "filter_width";
 
+/// フィルタリング：ファイル名（正規表現）
+const SP_FILTER_FILENAME_REGEX = "filter_filename_regex";
+
 /// フィルタリング：横向きのみ
 const SP_FILTER_ONLY_LANDSCAPE = "filter_only_landscape";
 

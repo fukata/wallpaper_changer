@@ -47,6 +47,8 @@ class _HomePageState extends State<HomePage> {
   Timer? _syncPhotosTimer;
   bool _syncPhotosProcessing = false;
 
+  String? _filterFilenameRegexError;
+
   /// 画像データを取得する
   void _handleSync() async {
     if (_syncPhotosProcessing) {
@@ -606,6 +608,42 @@ class _HomePageState extends State<HomePage> {
                   const Text("px"),
                 ],
               ),
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: const <Widget>[
+                    Text("ファイル名が次のパターンに一致する（正規表現）"),
+                  ],
+                ),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: <Widget>[
+                  Flexible(
+                    child: TextField(
+                      maxLines: 1,
+                      textAlign: TextAlign.right,
+                      controller: TextEditingController(
+                          text: _sp?.getString(SP_FILTER_FILENAME_REGEX) ?? ""),
+                      onSubmitted: (value) {
+                        setState(() {
+                          try {
+                            RegExp(value);
+                            _sp?.setString(SP_FILTER_FILENAME_REGEX, value);
+                            _filterFilenameRegexError = null;
+                          } on Exception catch (e) {
+                            _filterFilenameRegexError = "$value は正規表現として正しくありません。";
+                            log(e.toString());
+                          }
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              if (_filterFilenameRegexError != null)
+                _errorText(_filterFilenameRegexError!),
             ],
           )),
     );
@@ -757,6 +795,15 @@ class _HomePageState extends State<HomePage> {
     return const SpinKitFadingCircle(
       color: Colors.white,
       size: 16,
+    );
+  }
+
+  Widget _errorText(final String message) {
+    return Text(
+      message,
+      style: const TextStyle(
+        color: Colors.red,
+      ),
     );
   }
 }

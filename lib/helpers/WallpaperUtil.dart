@@ -27,12 +27,27 @@ app.MediaItem? pickupRandomMediaItem(SharedPreferences? sp) {
   // フィルタリング
   var filterOnlyLandscape = sp?.getBool(SP_FILTER_ONLY_LANDSCAPE) ?? false;
   var filterWidth = sp?.getInt(SP_FILTER_WIDTH) ?? 0;
-  log("フィルタリング：横向きのみ=$filterOnlyLandscape, 幅=$filterWidth");
+  RegExp? filterFilenameRegex;
+  var filterFilenameRegexStr = sp?.getString(SP_FILTER_FILENAME_REGEX);
+  if (filterFilenameRegexStr != null && filterFilenameRegexStr.isNotEmpty) {
+    try {
+      filterFilenameRegex = RegExp(filterFilenameRegexStr);
+    } on Exception catch (_) {
+      // 正規表現が正しくない場合は無視する
+    }
+  }
+  log("フィルタリング：横向きのみ=$filterOnlyLandscape, 幅=$filterWidth, ファイル名=$filterFilenameRegexStr");
   var filteredMediaItems = mediaItems.where((mediaItem) {
+    // 横幅
     if (filterWidth > 0 && mediaItem.width < filterWidth) {
       return false;
     }
+    // 横向き
     if (filterOnlyLandscape && mediaItem.width <= mediaItem.height) {
+      return false;
+    }
+    // ファイル名
+    if (filterFilenameRegex != null && !filterFilenameRegex.hasMatch(mediaItem.filename)) {
       return false;
     }
 
