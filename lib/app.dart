@@ -15,6 +15,13 @@ class _User {
 }
 
 @RealmModel()
+class _Album {
+  late String id;
+  late String title;
+  late String mediaItemsCount;
+}
+
+@RealmModel()
 class _MediaItem {
   late String id;
   late String filename;

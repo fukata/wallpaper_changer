@@ -46,13 +46,33 @@ class _HomePageState extends State<HomePage> {
   /// 画像データを定期的に取得するためのタイマー
   Timer? _syncPhotosTimer;
   bool _syncPhotosProcessing = false;
+  bool _syncAlbumsProcessing = false;
 
   String? _filterFilenameRegexError;
 
   /// 画像データを取得する
-  void _handleSync() async {
+  ///
+  /// 現在の取得先（最近 or アルバム）から自動判別してデータを取得する
+  Future<void> _handleSync() async {
+    var target = _sp?.getString(SP_PHOTOS_CONDITION_TARGET);
+    if (target == PHOTOS_CONDITION_TARGET_ALBUM) {
+      var albumId = _sp?.getString(SP_PHOTOS_CONDITION_SELECTED_ALBUM);
+      if (albumId != null && albumId.isNotEmpty) {
+        var albums = realm().query<app.Album>(r'id == $0', [albumId]);
+        if (albums.isNotEmpty) {
+          var album = albums.first;
+          await _handleSyncPhotos(albumId: album.id);
+        }
+      }
+    } else {
+      await _handleSyncPhotos();
+    }
+  }
+
+  /// 画像データを取得する
+  Future<void> _handleSyncPhotos({int? maxFetchNum, String? albumId}) async {
     if (_syncPhotosProcessing) {
-      log("既に同期中なので処理を中断します。");
+      log("既に写真の同期中なので処理を中断します。");
       return;
     }
 
@@ -67,8 +87,8 @@ class _HomePageState extends State<HomePage> {
       });
 
       var client = makeGoogleAuthClientFromUser(_currentUser!);
-      var maxFetchNum = _sp?.getInt(SP_SYNC_PHOTOS_PER_TIME) ?? 100;
-      await loadGooglePhotos(client, maxFetchNum);
+      maxFetchNum = maxFetchNum ?? _sp?.getInt(SP_SYNC_PHOTOS_PER_TIME) ?? 100;
+      await loadGooglePhotos(client: client, maxFetchNum: maxFetchNum, albumId: albumId);
       setState(() {
         _mediaItemCount = realm().all<app.MediaItem>().length;
       });
@@ -79,8 +99,43 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  /// アルバムデータを取得する
+  Future<void> _handleSyncAlbums() async {
+    if (_syncAlbumsProcessing) {
+      log("既にアルバムの同期中なので処理を中断します。");
+      return;
+    }
+
+    if (_currentUser == null) {
+      log("Google Photosに接続されていないので処理を中断します。");
+      return;
+    }
+
+    try {
+      setState(() {
+        _syncAlbumsProcessing = true;
+      });
+
+      var client = makeGoogleAuthClientFromUser(_currentUser!);
+      await loadGooglePhotoAlbums(client: client);
+    } finally {
+      setState(() {
+        _syncAlbumsProcessing = false;
+      });
+    }
+  }
+
+  /// アルバムに属している写真データを全て取得する
+  Future<void> _handleSyncAlbumData(String albumId) async {
+    var albums = realm().query<app.Album>(r'id == $0', [albumId]);
+    if (albums.isNotEmpty) {
+      var album = albums.first;
+      await _handleSyncPhotos(maxFetchNum: int.parse(album.mediaItemsCount), albumId: album.id);
+    }
+  }
+
   /// Google Photos と OAuthを行う
-  void _handleGooglePhotosAuth() async {
+  Future<void> _handleGooglePhotosAuth() async {
     AuthClient client = await _obtainCredentials();
     log("credentials=${client.credentials.toJson()}");
 
@@ -93,11 +148,8 @@ class _HomePageState extends State<HomePage> {
       _currentUser = user;
     });
 
-    var maxFetchNum = _sp?.getInt(SP_SYNC_PHOTOS_PER_TIME) ?? 100;
-    await loadGooglePhotos(client, maxFetchNum);
-    setState(() {
-      _mediaItemCount = realm().all<app.MediaItem>().length;
-    });
+    await _handleSync();
+    await _handleSyncAlbums();
   }
 
   app.User _registerUser(AccessCredentials credentials, Userinfo userInfo) {
@@ -124,9 +176,11 @@ class _HomePageState extends State<HomePage> {
         credentials.idToken!,
         credentials.scopes.join(','),
       );
+      _sp?.clear();
       realm().write(() {
         realm().deleteAll<app.User>();
         realm().deleteAll<app.MediaItem>();
+        realm().deleteAll<app.Album>();
         realm().add(user);
       });
     }
@@ -388,6 +442,7 @@ class _HomePageState extends State<HomePage> {
               _buildWidgetConnectedUser(context),
               _buildWidgetActions(context),
               _buildWidgetSummaryData(context),
+              _buildWidgetPhotosConditionSettings(context),
               _buildWidgetAutomaticallyChangeSettings(context),
               _buildWidgetAutomaticallySyncSettings(context),
               _buildWidgetFilterSettings(context),
@@ -476,7 +531,7 @@ class _HomePageState extends State<HomePage> {
             children: [
               _paddingRight(const Text("写真")),
               _paddingRight(Text("$_mediaItemCount")),
-              TextButton(onPressed: _resetUserData, child: Text("リセットする"))
+              TextButton(onPressed: _syncPhotosProcessing ? null : _resetUserData, child: Text("リセットする"))
             ],
           ),
         ],
@@ -493,6 +548,9 @@ class _HomePageState extends State<HomePage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: <Widget>[
+          _paddingRight(
+            TextButton(onPressed: _handleGooglePhotosAuth, child: const Text("再認証"))
+          ),
           const Text("Hello, "),
           Text(user.name),
           CircleAvatar(
@@ -500,6 +558,122 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
+    );
+  }
+
+  /// 最近 or アルバムの条件を表示する
+  Widget _buildWidgetPhotosConditionSettings(BuildContext context) {
+    var target = getSettingStringValue(
+      value: _sp?.getString(SP_PHOTOS_CONDITION_TARGET),
+      defaultValue: DEFAULT_PHOTOS_CONDITION_TARGET,
+      values: PHOTOS_CONDITION_TARGET_LIST
+    );
+    List<Widget> children = <Widget>[
+      Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              _paddingRight(const Text("次のどちらから写真を選択しますか？")),
+              DropdownButton<String>(
+                value: target,
+                items: PHOTOS_CONDITION_TARGET_LIST
+                    .map<DropdownMenuItem<String>>((String value) {
+                  return DropdownMenuItem<String>(
+                      child: Text(PHOTOS_CONDITION_TARGET_LABELS[value] ?? value), value: value);
+                }).toList(),
+                onChanged: _syncPhotosProcessing ? null : (newValue) {
+                  setState(() {
+                    _sp?.setString(SP_PHOTOS_CONDITION_TARGET, newValue ?? DEFAULT_PHOTOS_CONDITION_TARGET);
+                  });
+                },
+              ),
+            ],
+          )
+        ],
+      ),
+    ];
+
+    // アルバムが選択されている場合は対象のアルバム一覧を表示する。
+    if (target == PHOTOS_CONDITION_TARGET_ALBUM) {
+      var albums = realm().all<app.Album>();
+      List<DropdownMenuItem<String>> albumDropdownItems = albums.map<DropdownMenuItem<String>>((album) {
+        return DropdownMenuItem<String>(child: Text("${album.title} (${album.mediaItemsCount})"), value: album.id);
+      }).toList();
+
+      // DropdownButton はitemsに存在しない値の場合、エラーになるので事前に存在チェックを行う
+      var selectedAlbumId = _sp?.getString(SP_PHOTOS_CONDITION_SELECTED_ALBUM);
+      if (selectedAlbumId != null) {
+        var albumIds = albums.map((album) => album.id).toList();
+        if (!albumIds.contains(selectedAlbumId)) {
+          selectedAlbumId = null;
+        }
+      }
+
+      children.add(
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            TextButton(
+              onPressed: _syncAlbumsProcessing ? null : _handleSyncAlbums,
+              child: _syncAlbumsProcessing ?
+                Row(
+                  children: [
+                    _loadingIcon(),
+                    const Text("同期中..."),
+                  ],
+                ) :
+                const Text("アルバム一覧を更新する")
+            ),
+          ],
+        )
+      );
+      children.add(
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            DropdownButton<String>(
+              value: selectedAlbumId,
+              items: albumDropdownItems,
+              onChanged: _syncPhotosProcessing ? null : (newValue) {
+                setState(() {
+                  if (newValue == null) {
+                    _sp?.remove(SP_PHOTOS_CONDITION_SELECTED_ALBUM);
+                  } else {
+                    _sp?.setString(SP_PHOTOS_CONDITION_SELECTED_ALBUM, newValue);
+                  }
+                });
+              }
+            ),
+            _syncPhotosProcessing ?
+              Row(
+                children: [
+                  _loadingIcon(),
+                  const Text("同期中..."),
+                ],
+              ) :
+              TextButton(
+                onPressed: () {
+                  _handleSyncAlbumData(selectedAlbumId!);
+                },
+                child: const Text("同期する"),
+              ),
+          ],
+        )
+      );
+    }
+
+    return _buildWithSection(
+      context: context,
+      label: "最近 or アルバム",
+      child: _buildDefaultContainer(
+        context: context,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: children,
+        ),
+      )
     );
   }
 

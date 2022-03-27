@@ -39,3 +39,43 @@ const SP_LAST_PHOTOS_SYNCED_AT = "last_photos_synced_at";
 
 /// 1度に同期する写真の枚数
 const SP_SYNC_PHOTOS_PER_TIME = "sync_photos_per_time";
+
+/// どこの写真を選択するかのデフォルト値
+const DEFAULT_PHOTOS_CONDITION_TARGET = "recent";
+
+/// どこの写真を選択するか：最近
+const PHOTOS_CONDITION_TARGET_RECENT = "recent";
+
+/// どこの写真を選択するか：アルバム
+const PHOTOS_CONDITION_TARGET_ALBUM = "album";
+
+/// どこの写真を選択するかの一覧
+const PHOTOS_CONDITION_TARGET_LIST = <String>[PHOTOS_CONDITION_TARGET_RECENT, PHOTOS_CONDITION_TARGET_ALBUM];
+
+/// どこの写真を選択するかのラベル一覧
+const PHOTOS_CONDITION_TARGET_LABELS = {
+  PHOTOS_CONDITION_TARGET_RECENT : "最近",
+  PHOTOS_CONDITION_TARGET_ALBUM : "アルバム",
+};
+
+/// どこの写真を選択するか
+const SP_PHOTOS_CONDITION_TARGET = "photos_condition_target";
+
+/// 選択中のアルバムID
+const SP_PHOTOS_CONDITION_SELECTED_ALBUM = "photos_condition_selected_album";
+
+String getSettingStringValue({
+  required String? value,
+  required String defaultValue,
+  required List<String> values
+}) {
+  if (value == null) {
+    return defaultValue;
+  }
+
+  if (!values.contains(value)) {
+    return defaultValue;
+  }
+
+  return value;
+}
