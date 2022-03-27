@@ -93,6 +93,7 @@ class MediaItem extends _MediaItem with RealmEntity, RealmObject {
     String mimeType,
     int width,
     int height,
+    int creationTimestamp,
     bool cached,
   ) {
     RealmObject.set(this, 'id', id);
@@ -100,6 +101,7 @@ class MediaItem extends _MediaItem with RealmEntity, RealmObject {
     RealmObject.set(this, 'mimeType', mimeType);
     RealmObject.set(this, 'width', width);
     RealmObject.set(this, 'height', height);
+    RealmObject.set(this, 'creationTimestamp', creationTimestamp);
     RealmObject.set(this, 'cached', cached);
   }
 
@@ -131,6 +133,13 @@ class MediaItem extends _MediaItem with RealmEntity, RealmObject {
   set height(int value) => RealmObject.set(this, 'height', value);
 
   @override
+  int get creationTimestamp =>
+      RealmObject.get<int>(this, 'creationTimestamp') as int;
+  @override
+  set creationTimestamp(int value) =>
+      RealmObject.set(this, 'creationTimestamp', value);
+
+  @override
   bool get cached => RealmObject.get<bool>(this, 'cached') as bool;
   @override
   set cached(bool value) => RealmObject.set(this, 'cached', value);
@@ -149,6 +158,7 @@ class MediaItem extends _MediaItem with RealmEntity, RealmObject {
       SchemaProperty('mimeType', RealmPropertyType.string),
       SchemaProperty('width', RealmPropertyType.int),
       SchemaProperty('height', RealmPropertyType.int),
+      SchemaProperty('creationTimestamp', RealmPropertyType.int),
       SchemaProperty('cached', RealmPropertyType.bool),
     ]);
   }

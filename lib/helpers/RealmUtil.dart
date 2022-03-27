@@ -17,7 +17,7 @@ class RealmProvider {
   Future<void> init() async {
     var realmConfig = Configuration([User.schema, MediaItem.schema]);
     realmConfig.path = await getRealmPath();
-    realmConfig.schemaVersion = 3;
+    realmConfig.schemaVersion = 5;
     _realm = Realm(realmConfig);
   }
 

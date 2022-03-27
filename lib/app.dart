@@ -21,5 +21,6 @@ class _MediaItem {
   late String mimeType;
   late int width;
   late int height;
+  late int creationTimestamp;
   late bool cached;
 }

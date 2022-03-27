@@ -63,6 +63,7 @@ app.MediaItem _registerMediaItem(MediaItem mediaItem) {
       mediaItem.mimeType!,
       meta.width == null ? 0 : int.parse(meta.width!),
       meta.height == null ? 0 : int.parse(meta.height!),
+      DateTime.parse(meta.creationTime!).microsecondsSinceEpoch,
       false);
   realm().write(() {
     realm().add(newMediaItem);
