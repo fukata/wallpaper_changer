@@ -83,6 +83,10 @@ dev_dependencies:
   # MSIXパッケージの作成するために使用
   msix: ^3.4.1
 
+  # モックを使ったテストのために使用
+  mockito: ^5.1.0
+  build_runner: ^2.1.8
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 

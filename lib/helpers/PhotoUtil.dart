@@ -65,10 +65,9 @@ Future loadGooglePhotos({
 
 /// Google Photos からアルバム一覧を読み込む
 Future loadGooglePhotoAlbums({
-  required AuthClient client
+  required PhotosLibraryApi photosApi,
+  app.Album Function(Album album) onRegisterAlbum = _onRegisterAlbum
 }) async {
-  var photosApi = PhotosLibraryApi(client);
-
   String? nextPageToken;
   while (true) {
     var response = await photosApi.albums.list(
@@ -77,25 +76,25 @@ Future loadGooglePhotoAlbums({
     );
 
     if (response.albums == null) {
-      log("1");
       break;
     }
 
     for (var album in response.albums!) {
       log("album=${album.toJson()}");
-      _registerAlbum(album);
+      onRegisterAlbum(album);
     }
 
     nextPageToken = response.nextPageToken;
     if (nextPageToken == null || nextPageToken.isEmpty) {
-      log("2");
       break;
     }
   }
 }
 
+PhotosLibraryApi makePhotosLibraryApi(AuthClient client) => PhotosLibraryApi(client);
+
 /// アルバムデータを登録する
-app.Album _registerAlbum(Album album) {
+app.Album _onRegisterAlbum(Album album) {
   var albums = realm().query<app.Album>(r'id == $0', [album.id!]);
   if (albums.isNotEmpty) {
     var _album = albums.first;

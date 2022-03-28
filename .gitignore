@@ -50,3 +50,6 @@ app.*.map.json
 # Realm データファイル
 *.realm
 *.realm.lock
+
+# mockitoが生成したファイル
+**/*.mocks.dart

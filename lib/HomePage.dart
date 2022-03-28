@@ -117,7 +117,8 @@ class _HomePageState extends State<HomePage> {
       });
 
       var client = makeGoogleAuthClientFromUser(_currentUser!);
-      await loadGooglePhotoAlbums(client: client);
+      var photosApi = makePhotosLibraryApi(client);
+      await loadGooglePhotoAlbums(photosApi: photosApi);
     } finally {
       setState(() {
         _syncAlbumsProcessing = false;

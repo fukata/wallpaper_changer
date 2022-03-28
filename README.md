@@ -39,3 +39,10 @@ $ flutter pub run realm generate
 ```shell
 $ flutter pub run msix:create
 ```
+
+## テスト
+
+```shell
+$ flutter pub run build_runner build
+$ flutter test
+```
