@@ -46,3 +46,13 @@ $ flutter pub run msix:create
 $ flutter pub run build_runner build
 $ flutter test
 ```
+
+### realm_dart.dllが読み込めない時
+
+`flutter test` を実行した時に下記のようなエラーが出た場合、 `realm_dart.dll` を `C:\Windows\System32` にコピーすることで認識するようになります。
+
+`realm_dart.dll` は `windows/flutter/ephemeral/.plugin_symlinks/realm/windows/binary/windows/realm_dart.dll` にあります。
+
+```shell
+Invalid argument(s): Failed to load dynamic library 'realm_dart.dll': error code 126
+```
