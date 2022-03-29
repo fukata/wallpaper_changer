@@ -87,8 +87,13 @@ class _HomePageState extends State<HomePage> {
       });
 
       var client = makeGoogleAuthClientFromUser(_currentUser!);
+      var photosApi = makePhotosLibraryApi(client);
       maxFetchNum = maxFetchNum ?? _sp?.getInt(SP_SYNC_PHOTOS_PER_TIME) ?? 100;
-      await loadGooglePhotos(client: client, maxFetchNum: maxFetchNum, albumId: albumId);
+      await loadGooglePhotos(
+        photosApi: photosApi,
+        maxFetchNum: maxFetchNum,
+        request: makeSearchMediaItemsRequest(albumId: albumId),
+      );
       setState(() {
         _mediaItemCount = realm().all<app.MediaItem>().length;
       });

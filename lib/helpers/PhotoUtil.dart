@@ -8,28 +8,14 @@ import 'package:wallpaper_changer/helpers/RealmUtil.dart';
 
 /// Google Photos から写真を読み込む
 Future loadGooglePhotos({
-  required AuthClient client,
+  required PhotosLibraryApi photosApi,
   required int maxFetchNum,
-  String? albumId,
+  required SearchMediaItemsRequest request,
+  app.MediaItem Function(MediaItem mediaItem) onRegisterMediaItem = _onRegisterMediaItem
 }) async {
-  var photosApi = PhotosLibraryApi(client);
-
   int fetchedMediaItemsNum = 0;
   String? nextPageToken;
   while (fetchedMediaItemsNum < maxFetchNum) {
-    SearchMediaItemsRequest request = SearchMediaItemsRequest(
-      orderBy: 'MediaMetadata.creation_time desc',
-      pageSize: 100,
-      pageToken: nextPageToken,
-    );
-
-    // APIの制限でalbumIdとfiltersは併用できない
-    if (albumId != null && albumId.isNotEmpty) {
-      request.albumId = albumId;
-    } else {
-      request.filters = Filters(mediaTypeFilter: MediaTypeFilter(mediaTypes: ['PHOTO']));
-    }
-
     var response = await photosApi.mediaItems.search(request);
     if (response.mediaItems == null) {
       break;
@@ -49,7 +35,7 @@ Future loadGooglePhotos({
       }
 
       log("mediaItem=${mediaItem.toJson()}");
-      _registerMediaItem(mediaItem);
+      onRegisterMediaItem(mediaItem);
     }
 
     if (fetchedMediaItemsNum > maxFetchNum) {
@@ -60,7 +46,33 @@ Future loadGooglePhotos({
     if (nextPageToken == null) {
       break;
     }
+
+    request.pageToken = nextPageToken;
   }
+}
+
+/// `loadGooglePhotos` に渡すリクエストオブジェクトを生成して返す
+SearchMediaItemsRequest makeSearchMediaItemsRequest({
+  String orderBy = 'MediaMetadata.creation_time desc',
+  int pageSize = 100,
+  String? albumId,
+  Filters? filters,
+  String? pageToken,
+}) {
+  SearchMediaItemsRequest request = SearchMediaItemsRequest(
+    orderBy: orderBy,
+    pageSize: pageSize,
+    pageToken: pageToken,
+  );
+
+  // APIの制限でalbumIdとfiltersは併用できない
+  if (albumId != null) {
+    request.albumId = albumId;
+  } else if (filters != null) {
+    request.filters = filters;
+  }
+
+  return request;
 }
 
 /// Google Photos からアルバム一覧を読み込む
@@ -117,7 +129,7 @@ app.Album _onRegisterAlbum(Album album) {
 }
 
 /// 画像データを登録する
-app.MediaItem _registerMediaItem(MediaItem mediaItem) {
+app.MediaItem _onRegisterMediaItem(MediaItem mediaItem) {
   var mediaItems = realm().query<app.MediaItem>(r'id == $0', [mediaItem.id!]);
   if (mediaItems.isNotEmpty) {
     return mediaItems.first;

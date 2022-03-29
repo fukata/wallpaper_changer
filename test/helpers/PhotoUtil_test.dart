@@ -7,8 +7,65 @@ import 'package:wallpaper_changer/helpers/PhotoUtil.dart';
 
 import 'PhotoUtil_test.mocks.dart';
 
-@GenerateMocks([PhotosLibraryApi, AlbumsResource])
+@GenerateMocks([PhotosLibraryApi, AlbumsResource, MediaItemsResource])
 void main() {
+  group("loadGooglePhotos", () {
+    test("call 0 times onRegisterMediaItem if mediaItems is null", () async {
+      final photosApi = MockPhotosLibraryApi();
+      final mediaItems = MockMediaItemsResource();
+
+      SearchMediaItemsRequest request = makeSearchMediaItemsRequest();
+      when(photosApi.mediaItems).thenReturn(mediaItems);
+      when(
+          mediaItems.search(request)
+      ).thenAnswer((_) async => SearchMediaItemsResponse());
+
+      var called = 0;
+      await loadGooglePhotos(
+          photosApi: photosApi,
+          maxFetchNum: 10,
+          request: request,
+          onRegisterMediaItem: (_) {
+            called++;
+            return app.MediaItem("id", "filename", "mimeType", 0, 0, 0, false);
+          }
+      );
+
+      expect(called, 0);
+    });
+
+    test("call 3 times onRegisterMediaItem if have 3 mediaItems", () async {
+      final photosApi = MockPhotosLibraryApi();
+      final mediaItems = MockMediaItemsResource();
+
+      SearchMediaItemsRequest request = makeSearchMediaItemsRequest();
+      when(photosApi.mediaItems).thenReturn(mediaItems);
+      when(
+          mediaItems.search(request)
+      ).thenAnswer((_) async => SearchMediaItemsResponse(
+        mediaItems: [
+          MediaItem(mediaMetadata: MediaMetadata(photo: Photo())),
+          MediaItem(mediaMetadata: MediaMetadata(photo: Photo())),
+          MediaItem(mediaMetadata: MediaMetadata(video: Video())),
+          MediaItem(mediaMetadata: MediaMetadata(photo: Photo())),
+        ]
+      ));
+
+      var called = 0;
+      await loadGooglePhotos(
+          photosApi: photosApi,
+          maxFetchNum: 10,
+          request: request,
+          onRegisterMediaItem: (_) {
+            called++;
+            return app.MediaItem("id", "filename", "mimeType", 0, 0, 0, false);
+          }
+      );
+
+      expect(called, 3);
+    });
+  });
+
   group("loadGooglePhotoAlbums", () {
     test("call 0 times onRegisterAlbum if albums is null", () async {
       final photosApi = MockPhotosLibraryApi();
