@@ -16,8 +16,8 @@ import 'package:wallpaper_changer/helpers/PhotoUtil.dart';
 import 'package:wallpaper_changer/helpers/Setting.dart';
 import 'package:wallpaper_changer/helpers/TimerUtil.dart';
 
-import 'helpers/RealmUtil.dart';
-import 'helpers/WallpaperUtil.dart';
+import '../helpers/RealmUtil.dart';
+import '../helpers/WallpaperUtil.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key, required this.title}) : super(key: key);
