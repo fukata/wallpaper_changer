@@ -7,8 +7,8 @@ import 'package:wallpaper_changer/models/Album.dart' as AlbumModel;
 import 'package:wallpaper_changer/models/MediaItem.dart' as MediaItemModel;
 
 
-/// Google Photos から写真を読み込む
-Future loadGooglePhotos({
+/// Google Photos から写真を読み込み、データベースに登録する
+Future syncGooglePhotos({
   required PhotosLibraryApi photosApi,
   required int maxFetchNum,
   required SearchMediaItemsRequest request,
@@ -52,7 +52,7 @@ Future loadGooglePhotos({
   }
 }
 
-/// `loadGooglePhotos` に渡すリクエストオブジェクトを生成して返す
+/// `syncGooglePhotos` に渡すリクエストオブジェクトを生成して返す
 SearchMediaItemsRequest makeSearchMediaItemsRequest({
   String orderBy = 'MediaMetadata.creation_time desc',
   int pageSize = 100,
@@ -76,8 +76,8 @@ SearchMediaItemsRequest makeSearchMediaItemsRequest({
   return request;
 }
 
-/// Google Photos からアルバム一覧を読み込む
-Future loadGooglePhotoAlbums({
+/// Google Photos からアルバム一覧を読み込み、データベースに登録する
+Future syncGooglePhotoAlbums({
   required PhotosLibraryApi photosApi,
   AlbumModel.Album Function(Album album) onRegisterAlbum = _onRegisterAlbum
 }) async {

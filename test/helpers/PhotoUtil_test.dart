@@ -10,7 +10,7 @@ import 'PhotoUtil_test.mocks.dart';
 
 @GenerateMocks([PhotosLibraryApi, AlbumsResource, MediaItemsResource])
 void main() {
-  group("loadGooglePhotos", () {
+  group("syncGooglePhotos", () {
     test("call 0 times onRegisterMediaItem if mediaItems is null", () async {
       final photosApi = MockPhotosLibraryApi();
       final mediaItems = MockMediaItemsResource();
@@ -22,7 +22,7 @@ void main() {
       ).thenAnswer((_) async => SearchMediaItemsResponse());
 
       var called = 0;
-      await loadGooglePhotos(
+      await syncGooglePhotos(
           photosApi: photosApi,
           maxFetchNum: 10,
           request: request,
@@ -53,7 +53,7 @@ void main() {
       ));
 
       var called = 0;
-      await loadGooglePhotos(
+      await syncGooglePhotos(
           photosApi: photosApi,
           maxFetchNum: 10,
           request: request,
@@ -67,7 +67,7 @@ void main() {
     });
   });
 
-  group("loadGooglePhotoAlbums", () {
+  group("syncGooglePhotoAlbums", () {
     test("call 0 times onRegisterAlbum if albums is null", () async {
       final photosApi = MockPhotosLibraryApi();
       final albums = MockAlbumsResource();
@@ -78,7 +78,7 @@ void main() {
       ).thenAnswer((_) async => ListAlbumsResponse());
 
       var called = 0;
-      await loadGooglePhotoAlbums(
+      await syncGooglePhotoAlbums(
         photosApi: photosApi,
         onRegisterAlbum: (_) {
           called++;
@@ -105,7 +105,7 @@ void main() {
       ));
 
       var called = 0;
-      await loadGooglePhotoAlbums(
+      await syncGooglePhotoAlbums(
           photosApi: photosApi,
           onRegisterAlbum: (_) {
             called++;

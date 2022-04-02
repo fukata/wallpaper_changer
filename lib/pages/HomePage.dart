@@ -90,7 +90,7 @@ class _HomePageState extends State<HomePage> {
       var client = makeGoogleAuthClientFromUser(_currentUser!);
       var photosApi = makePhotosLibraryApi(client);
       maxFetchNum = maxFetchNum ?? _sp?.getInt(SP_SYNC_PHOTOS_PER_TIME) ?? 100;
-      await loadGooglePhotos(
+      await syncGooglePhotos(
         photosApi: photosApi,
         maxFetchNum: maxFetchNum,
         request: makeSearchMediaItemsRequest(albumId: albumId),
@@ -124,7 +124,7 @@ class _HomePageState extends State<HomePage> {
 
       var client = makeGoogleAuthClientFromUser(_currentUser!);
       var photosApi = makePhotosLibraryApi(client);
-      await loadGooglePhotoAlbums(photosApi: photosApi);
+      await syncGooglePhotoAlbums(photosApi: photosApi);
     } finally {
       setState(() {
         _syncAlbumsProcessing = false;
