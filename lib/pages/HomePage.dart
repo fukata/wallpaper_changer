@@ -267,7 +267,7 @@ class _HomePageState extends State<HomePage> {
     }
 
     // 最終更新日時からduration分過ぎていれば処理を実行する
-    var duration = _sp?.getString(SP_AUTO_CHANGE_WALLPAPER_DURATION) ?? "";
+    var duration = _sp?.getString(SP_AUTO_CHANGE_WALLPAPER_DURATION) ?? DEFAULT_AUTO_CHANGE_WALLPAPER_DURATION;
     if (duration.isEmpty) {
       return;
     }
@@ -298,7 +298,7 @@ class _HomePageState extends State<HomePage> {
     }
 
     // 最終更新日時からduration分過ぎていれば処理を実行する
-    var duration = _sp?.getString(SP_AUTO_SYNC_PHOTOS_DURATION) ?? "";
+    var duration = _sp?.getString(SP_AUTO_SYNC_PHOTOS_DURATION) ?? DEFAULT_AUTO_SYNC_PHOTOS_DURATION;
     if (duration.isEmpty) {
       return;
     }
