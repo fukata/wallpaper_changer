@@ -60,3 +60,29 @@ $ flutter test
 ```shell
 Invalid argument(s): Failed to load dynamic library 'realm_dart.dll': error code 126
 ```
+
+## リリース方法
+
+下記の２つのファイルの修正が必要です。
+
+- CHANGELOG.md
+- pubspec.yaml
+
+### CHANGELOG.md
+
+変更履歴の内容を記載してください。
+
+### pubspec.yaml
+
+下記の２箇所のバージョンをタグと合わせてください。
+
+```yaml
+version: 1.3.1
+```
+
+```yaml
+msix_config:
+  ...
+  msix_version: 1.3.1.0
+  ...
+```
