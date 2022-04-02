@@ -8,16 +8,16 @@ import 'package:googleapis/photoslibrary/v1.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:wallpaper_changer/app.dart' as app;
 import 'package:wallpaper_changer/helpers/AuthUtil.dart';
 import 'package:wallpaper_changer/helpers/PathUtil.dart';
 import 'package:wallpaper_changer/helpers/RealmUtil.dart';
 import 'package:wallpaper_changer/helpers/Setting.dart';
+import 'package:wallpaper_changer/models/MediaItem.dart' as MediaItemModel;
 import 'package:win32/win32.dart';
 
 /// 壁紙に使用する画像をランダムに選定する
-app.MediaItem? pickupRandomMediaItem(SharedPreferences? sp) {
-  var mediaItems = realm().all<app.MediaItem>();
+MediaItemModel.MediaItem? pickupRandomMediaItem(SharedPreferences? sp) {
+  var mediaItems = realm().all<MediaItemModel.MediaItem>();
   var total = mediaItems.length;
   log("MediaItem total is $total");
   if (total == 0) {
@@ -125,7 +125,7 @@ void setWallpaper(String filePath) async {
   }
 }
 
-Future<String> savedMediaItemFilePath(app.MediaItem mediaItem) async {
+Future<String> savedMediaItemFilePath(MediaItemModel.MediaItem mediaItem) async {
   var path = await fetchMediaItemFilePath(mediaItem);
   log("path=$path");
 
@@ -151,7 +151,7 @@ Future<String> savedMediaItemFilePath(app.MediaItem mediaItem) async {
 }
 
 /// MediaItem の画像をダウンロードしてローカルのファイルパスを返す
-Future<String> fetchMediaItemFilePath(app.MediaItem mediaItem) async {
+Future<String> fetchMediaItemFilePath(MediaItemModel.MediaItem mediaItem) async {
   var dir = await _getMediaItemDir();
   return path.join(dir.path, "${mediaItem.id}-${mediaItem.filename}");
 }

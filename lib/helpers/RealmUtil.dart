@@ -1,6 +1,8 @@
 import 'package:realm/realm.dart';
-import 'package:wallpaper_changer/app.dart';
 import 'package:wallpaper_changer/helpers/PathUtil.dart';
+import 'package:wallpaper_changer/models/Album.dart';
+import 'package:wallpaper_changer/models/MediaItem.dart';
+import 'package:wallpaper_changer/models/User.dart';
 
 /// Realmのインスタンスをシングルトンで提供するためのクラス
 class RealmProvider {

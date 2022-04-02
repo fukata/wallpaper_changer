@@ -2,8 +2,9 @@ import 'dart:developer';
 
 import 'package:googleapis/photoslibrary/v1.dart';
 import 'package:googleapis_auth/auth_io.dart';
-import 'package:wallpaper_changer/app.dart' as app;
 import 'package:wallpaper_changer/helpers/RealmUtil.dart';
+import 'package:wallpaper_changer/models/Album.dart' as AlbumModel;
+import 'package:wallpaper_changer/models/MediaItem.dart' as MediaItemModel;
 
 
 /// Google Photos から写真を読み込む
@@ -11,7 +12,7 @@ Future loadGooglePhotos({
   required PhotosLibraryApi photosApi,
   required int maxFetchNum,
   required SearchMediaItemsRequest request,
-  app.MediaItem Function(MediaItem mediaItem) onRegisterMediaItem = _onRegisterMediaItem
+  MediaItemModel.MediaItem Function(MediaItem mediaItem) onRegisterMediaItem = _onRegisterMediaItem
 }) async {
   int fetchedMediaItemsNum = 0;
   String? nextPageToken;
@@ -78,7 +79,7 @@ SearchMediaItemsRequest makeSearchMediaItemsRequest({
 /// Google Photos からアルバム一覧を読み込む
 Future loadGooglePhotoAlbums({
   required PhotosLibraryApi photosApi,
-  app.Album Function(Album album) onRegisterAlbum = _onRegisterAlbum
+  AlbumModel.Album Function(Album album) onRegisterAlbum = _onRegisterAlbum
 }) async {
   String? nextPageToken;
   while (true) {
@@ -106,8 +107,8 @@ Future loadGooglePhotoAlbums({
 PhotosLibraryApi makePhotosLibraryApi(AuthClient client) => PhotosLibraryApi(client);
 
 /// アルバムデータを登録する
-app.Album _onRegisterAlbum(Album album) {
-  var albums = realm().query<app.Album>(r'id == $0', [album.id!]);
+AlbumModel.Album _onRegisterAlbum(Album album) {
+  var albums = realm().query<AlbumModel.Album>(r'id == $0', [album.id!]);
   if (albums.isNotEmpty) {
     var _album = albums.first;
     realm().write(() {
@@ -116,7 +117,7 @@ app.Album _onRegisterAlbum(Album album) {
     return _album;
   }
 
-  var newAlbum = app.Album(
+  var newAlbum = AlbumModel.Album(
     album.id!,
     album.title!,
     album.mediaItemsCount!
@@ -129,14 +130,14 @@ app.Album _onRegisterAlbum(Album album) {
 }
 
 /// 画像データを登録する
-app.MediaItem _onRegisterMediaItem(MediaItem mediaItem) {
-  var mediaItems = realm().query<app.MediaItem>(r'id == $0', [mediaItem.id!]);
+MediaItemModel.MediaItem _onRegisterMediaItem(MediaItem mediaItem) {
+  var mediaItems = realm().query<MediaItemModel.MediaItem>(r'id == $0', [mediaItem.id!]);
   if (mediaItems.isNotEmpty) {
     return mediaItems.first;
   }
 
   var meta = mediaItem.mediaMetadata!;
-  var newMediaItem = app.MediaItem(
+  var newMediaItem = MediaItemModel.MediaItem(
       mediaItem.id!,
       mediaItem.filename!,
       mediaItem.mimeType!,

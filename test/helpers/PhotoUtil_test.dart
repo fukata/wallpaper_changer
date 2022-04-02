@@ -2,8 +2,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:googleapis/photoslibrary/v1.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-import 'package:wallpaper_changer/app.dart' as app;
 import 'package:wallpaper_changer/helpers/PhotoUtil.dart';
+import 'package:wallpaper_changer/models/Album.dart' as AlbumModel;
+import 'package:wallpaper_changer/models/MediaItem.dart' as MediaItemModel;
 
 import 'PhotoUtil_test.mocks.dart';
 
@@ -27,7 +28,7 @@ void main() {
           request: request,
           onRegisterMediaItem: (_) {
             called++;
-            return app.MediaItem("id", "filename", "mimeType", 0, 0, 0, false);
+            return MediaItemModel.MediaItem("id", "filename", "mimeType", 0, 0, 0, false);
           }
       );
 
@@ -58,7 +59,7 @@ void main() {
           request: request,
           onRegisterMediaItem: (_) {
             called++;
-            return app.MediaItem("id", "filename", "mimeType", 0, 0, 0, false);
+            return MediaItemModel.MediaItem("id", "filename", "mimeType", 0, 0, 0, false);
           }
       );
 
@@ -81,7 +82,7 @@ void main() {
         photosApi: photosApi,
         onRegisterAlbum: (_) {
           called++;
-          return app.Album("id", "title", "mediaItemsCount");
+          return AlbumModel.Album("id", "title", "mediaItemsCount");
         }
       );
 
@@ -108,7 +109,7 @@ void main() {
           photosApi: photosApi,
           onRegisterAlbum: (_) {
             called++;
-            return app.Album("id", "title", "mediaItemsCount");
+            return AlbumModel.Album("id", "title", "mediaItemsCount");
           }
       );
 

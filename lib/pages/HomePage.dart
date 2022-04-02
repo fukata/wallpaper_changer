@@ -10,14 +10,15 @@ import 'package:googleapis_auth/auth_io.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:system_tray/system_tray.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:wallpaper_changer/app.dart' as app;
 import 'package:wallpaper_changer/helpers/AuthUtil.dart';
 import 'package:wallpaper_changer/helpers/PhotoUtil.dart';
+import 'package:wallpaper_changer/helpers/RealmUtil.dart';
 import 'package:wallpaper_changer/helpers/Setting.dart';
 import 'package:wallpaper_changer/helpers/TimerUtil.dart';
-
-import '../helpers/RealmUtil.dart';
-import '../helpers/WallpaperUtil.dart';
+import 'package:wallpaper_changer/helpers/WallpaperUtil.dart';
+import 'package:wallpaper_changer/models/Album.dart';
+import 'package:wallpaper_changer/models/MediaItem.dart';
+import 'package:wallpaper_changer/models/User.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key, required this.title}) : super(key: key);
@@ -36,7 +37,7 @@ class _HomePageState extends State<HomePage> {
   /// 現在の壁紙のファイルパス
   String _wallpaperFilePath = "";
 
-  app.User? _currentUser;
+  User? _currentUser;
   int _mediaItemCount = 0;
 
   /// 壁紙を自動更新する時に使用するタイマー
@@ -58,7 +59,7 @@ class _HomePageState extends State<HomePage> {
     if (target == PHOTOS_CONDITION_TARGET_ALBUM) {
       var albumId = _sp?.getString(SP_PHOTOS_CONDITION_SELECTED_ALBUM);
       if (albumId != null && albumId.isNotEmpty) {
-        var albums = realm().query<app.Album>(r'id == $0', [albumId]);
+        var albums = realm().query<Album>(r'id == $0', [albumId]);
         if (albums.isNotEmpty) {
           var album = albums.first;
           await _handleSyncPhotos(albumId: album.id);
@@ -95,7 +96,7 @@ class _HomePageState extends State<HomePage> {
         request: makeSearchMediaItemsRequest(albumId: albumId),
       );
       setState(() {
-        _mediaItemCount = realm().all<app.MediaItem>().length;
+        _mediaItemCount = realm().all<MediaItem>().length;
       });
     } finally {
       setState(() {
@@ -133,7 +134,7 @@ class _HomePageState extends State<HomePage> {
 
   /// アルバムに属している写真データを全て取得する
   Future<void> _handleSyncAlbumData(String albumId) async {
-    var albums = realm().query<app.Album>(r'id == $0', [albumId]);
+    var albums = realm().query<Album>(r'id == $0', [albumId]);
     if (albums.isNotEmpty) {
       var album = albums.first;
       await _handleSyncPhotos(maxFetchNum: int.parse(album.mediaItemsCount), albumId: album.id);
@@ -154,17 +155,18 @@ class _HomePageState extends State<HomePage> {
       _currentUser = user;
     });
 
-    await _handleSync();
-    await _handleSyncAlbums();
+    if (user.isValidPermission()) {
+      await _handleSync();
+      await _handleSyncAlbums();
+    }
   }
 
-  app.User _registerUser(AccessCredentials credentials, Userinfo userInfo) {
-    var users = realm().query<app.User>(r'id == $0', [userInfo.id!]);
-    late app.User user;
+  User _registerUser(AccessCredentials credentials, Userinfo userInfo) {
+    var users = realm().query<User>(r'id == $0', [userInfo.id!]);
+    late User user;
     if (users.isNotEmpty) {
       user = users.first;
       realm().write(() {
-        user.id = userInfo.id!;
         user.name = userInfo.name!;
         user.pictureUrl = userInfo.picture!;
         user.accessToken = credentials.accessToken.data;
@@ -173,7 +175,7 @@ class _HomePageState extends State<HomePage> {
         user.scope = credentials.scopes.join(',');
       });
     } else {
-      user = app.User(
+      user = User(
         userInfo.id!,
         userInfo.name!,
         userInfo.picture!,
@@ -184,9 +186,9 @@ class _HomePageState extends State<HomePage> {
       );
       _sp?.clear();
       realm().write(() {
-        realm().deleteAll<app.User>();
-        realm().deleteAll<app.MediaItem>();
-        realm().deleteAll<app.Album>();
+        realm().deleteAll<User>();
+        realm().deleteAll<MediaItem>();
+        realm().deleteAll<Album>();
         realm().add(user);
       });
     }
@@ -248,7 +250,7 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _initSystemTray();
     _currentUser = getCurrentUser();
-    _mediaItemCount = realm().all<app.MediaItem>().length;
+    _mediaItemCount = realm().all<MediaItem>().length;
 
     SharedPreferences.getInstance().then((value) => {
           setState(() {
@@ -381,7 +383,7 @@ class _HomePageState extends State<HomePage> {
 
   void _resetUserData() {
     realm().write(() {
-      realm().deleteAll<app.MediaItem>();
+      realm().deleteAll<MediaItem>();
     });
     setState(() {
       _mediaItemCount = 0;
@@ -433,6 +435,10 @@ class _HomePageState extends State<HomePage> {
   Widget _buildBody(BuildContext context) {
     if (_currentUser == null) {
       return _buildBodyLogin(context);
+    }
+
+    if (_currentUser!.isInvalidPermission()) {
+      return _buildBodyInvalidPermission(context);
     }
 
     return Center(
@@ -537,7 +543,7 @@ class _HomePageState extends State<HomePage> {
             children: [
               _paddingRight(const Text("写真")),
               _paddingRight(Text("$_mediaItemCount")),
-              TextButton(onPressed: _syncPhotosProcessing ? null : _resetUserData, child: Text("リセットする"))
+              TextButton(onPressed: _syncPhotosProcessing ? null : _resetUserData, child: const Text("リセットする"))
             ],
           ),
         ],
@@ -547,7 +553,7 @@ class _HomePageState extends State<HomePage> {
 
   /// 認証済みのアカウント情報を表示する
   Widget _buildWidgetConnectedUser(BuildContext context) {
-    app.User user = _currentUser!;
+    User user = _currentUser!;
     return SizedBox(
       width: double.infinity,
       height: 40,
@@ -603,7 +609,7 @@ class _HomePageState extends State<HomePage> {
 
     // アルバムが選択されている場合は対象のアルバム一覧を表示する。
     if (target == PHOTOS_CONDITION_TARGET_ALBUM) {
-      var albums = realm().all<app.Album>();
+      var albums = realm().all<Album>();
       List<DropdownMenuItem<String>> albumDropdownItems = albums.map<DropdownMenuItem<String>>((album) {
         return DropdownMenuItem<String>(child: Text("${album.title} (${album.mediaItemsCount})"), value: album.id);
       }).toList();
@@ -956,6 +962,23 @@ class _HomePageState extends State<HomePage> {
           TextButton(
             onPressed: _handleGooglePhotosAuth,
             child: const Text("Google Photosに接続する"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 権限が足りず再認証が必要な画面を表示する
+  Widget _buildBodyInvalidPermission(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[Column(
+            children: [
+              const Text("Google Photosへのアクセス権限が付与されていないので再認証を行ってください。"),
+              const Text("認証時にGoogle Photosへのアクセスへの許可をしてください。"),
+              TextButton(onPressed: _handleGooglePhotosAuth, child: const Text("再認証"))
+            ],
           ),
         ],
       ),
