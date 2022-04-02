@@ -2,6 +2,10 @@
 
 これは Google Photos の写真を壁紙に設定するためのGUIアプリです。
 
+## 変更履歴
+
+[CHANGELOG](./CHANGELOG.md)
+
 ## 対応OS
 
 - Windows
